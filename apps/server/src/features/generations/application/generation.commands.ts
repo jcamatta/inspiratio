@@ -24,6 +24,7 @@ import { generatedTagNames } from '../../tags/domain/tag.ts'
 import {
   CARD_SIZE,
   createGenerationRequest,
+  nextRun,
   reportProgress,
   resultPosition,
   transition,
@@ -158,6 +159,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
       })
 
     const anchors = [{ position: request.position, size: CARD_SIZE }]
+    const run = nextRun({ items: state.items, requestId: request.id })
     const ids: string[] = []
     const failures: string[] = []
 
@@ -184,6 +186,8 @@ export const createGenerationCommands = (deps: ItemDeps) => {
                 provider: result.provider,
                 model: result.model,
                 prompt: request.prompt,
+                providerPrompt: params.input.providerPrompt ?? null,
+                run,
                 referenceItemIds: request.references.map((reference) => reference.itemId),
               },
               systemTagNames: generatedTagNames({ provider: result.provider, model: result.model }),

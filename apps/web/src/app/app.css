@@ -101,3 +101,12 @@
   border-radius: 2px;
   border: 1.5px solid var(--color-panel);
 }
+
+.react-flow__node.lineage-dim {
+  opacity: 0.3;
+  transition: opacity 150ms;
+}
+
+.react-flow__edge.lineage-edge {
+  pointer-events: none;
+}

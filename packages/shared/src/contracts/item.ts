@@ -21,6 +21,10 @@ export const GenerationInfoSchema = z.object({
   provider: z.string(),
   model: z.string(),
   prompt: z.string(),
+  /** Exact prompt the agent sent to the provider, when it rewrote the user's brief. */
+  providerPrompt: z.string().nullable().default(null),
+  /** Which Generate run of the request produced this result, starting at 1. */
+  run: z.number().int().min(1).default(1),
   referenceItemIds: z.array(IdSchema),
 })
 export type GenerationInfo = z.infer<typeof GenerationInfoSchema>

@@ -278,7 +278,8 @@ describe('generation domain', () => {
   })
 
   it('enforces the lifecycle state machine', () => {
-    expect(canTransition({ from: 'completed', to: 'pending' })).toBe(false)
+    expect(canTransition({ from: 'completed', to: 'failed' })).toBe(false)
+    expect(canTransition({ from: 'completed', to: 'pending' })).toBe(true)
     expect(canTransition({ from: 'in_progress', to: 'pending' })).toBe(true)
     const started = transition({ request: request(), to: 'in_progress', now: 'l' })
     expect(started).toMatchObject({ ok: true, value: { status: 'in_progress', error: null } })
@@ -306,6 +307,8 @@ describe('generation domain', () => {
         kind: 'image',
         mimeType: 'image/png',
         absolutePath: '/lib/itm_1.png',
+        uploadPath: '/lib/itm_1.png',
+        uploadMimeType: 'image/png',
         mediaUrl: '/media/itm_1.png',
         sourceUrl: null,
         tags: ['Noir'],

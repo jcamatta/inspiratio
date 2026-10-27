@@ -6,6 +6,7 @@ import {
   type Item,
 } from '@inspiratio/shared'
 import { NodeResizer } from '@xyflow/react'
+import { LineageHandles } from './LineageHandles.tsx'
 import {
   ClipboardCopy,
   Film,
@@ -136,6 +137,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
         dropActive && 'outline-3 outline-offset-3 outline-accent',
       )}
     >
+      <LineageHandles />
       <NodeResizer isVisible={props.selected} minWidth={300} minHeight={260} />
       <Stack
         direction="row"
@@ -319,6 +321,11 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
             {request.status === 'failed' && (
               <Button size="sm" icon={RotateCw} onClick={props.onRetry} testId="prompt-retry">
                 Retry
+              </Button>
+            )}
+            {request.status === 'completed' && (
+              <Button size="sm" icon={RotateCw} onClick={props.onRetry} testId="prompt-again">
+                Generate again
               </Button>
             )}
           </Stack>

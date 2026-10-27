@@ -32,6 +32,7 @@ import {
   type ContextTarget,
 } from './domain/context-target.ts'
 import { parseTransfer, snapshotTransfer, type DropPayload } from './domain/drop-data.ts'
+import { dimOutside, lineageOf } from './domain/lineage.ts'
 import {
   applyReparenting,
   deletableNodes,
@@ -195,6 +196,20 @@ export const Board = () => {
     [board.sections],
   )
   const promptIds = useMemo(() => new Set(requests.map((request) => request.id)), [requests])
+  const focusKey = nodes
+    .filter((node) => node.selected === true && !isSectionNode(node))
+    .map((node) => node.id)
+    .join(' ')
+  const lineage = useMemo(
+    () =>
+      lineageOf({
+        focus: focusKey === '' ? [] : focusKey.split(' '),
+        items: board.items,
+        generations: requests,
+      }),
+    [focusKey, board.items, requests],
+  )
+  const shownNodes = useMemo(() => dimOutside({ nodes, lineage }), [nodes, lineage])
 
   const onContextMenu = useCallback(
     (event: MouseEvent) => {
@@ -320,7 +335,8 @@ export const Board = () => {
   return (
     <BoardView
       onWrapperElement={setWrapper}
-      nodes={nodes}
+      nodes={shownNodes}
+      edges={lineage.edges}
       isEmpty={
         !isLoading &&
         board.items.length === 0 &&

@@ -7,6 +7,7 @@ import { createServiceLogger } from './shared/logging/bootstrap.ts'
 import { createFsMediaStorage, readLocalFile } from './shared/media/media-storage.ts'
 import { createFileLibraryStore } from './shared/persistence/library-store.ts'
 import { createSystemFolderOpener } from './shared/system/folder-opener.ts'
+import { createSharpUploadPreparer } from './shared/media/upload-copy.ts'
 
 const rootDir = fileURLToPath(new URL('../../../', import.meta.url))
 const config = loadConfig({ env: process.env, rootDir })
@@ -46,6 +47,7 @@ const start = async (): Promise<void> => {
     fetchTimeoutMs: config.fetchTimeoutMs,
     webDistDir: config.webDistDir,
     openFolder: createSystemFolderOpener(process.platform),
+    prepareUpload: await createSharpUploadPreparer({ cacheDir: config.uploadCacheDir }),
   })
   app.listen(config.port, config.host, () => {
     logger.info({

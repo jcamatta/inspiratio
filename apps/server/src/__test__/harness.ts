@@ -3,6 +3,7 @@ import { createApp, type AppDeps } from '../app.ts'
 import { createLogger, memorySink } from '../shared/logging/logger.ts'
 import { fixedClock, sequentialIds } from '../shared/lib/runtime.ts'
 import { createMemoryMediaStorage } from '../shared/media/media-storage.ts'
+import { keepOriginalUpload } from '../shared/media/upload-copy.ts'
 import type { FetchFn } from '../shared/media/remote-media.ts'
 import { createMemoryLibraryStore } from '../shared/persistence/library-store.ts'
 
@@ -87,6 +88,7 @@ export const createTestDeps = (params?: {
     maxImportBytes: 1024 * 1024,
     fetchTimeoutMs: 1000,
     webDistDir: null,
+    prepareUpload: keepOriginalUpload,
     openFolder: (path) => {
       if (params?.openFails === true) return Promise.reject(new Error('no file manager'))
       opened.push(path)

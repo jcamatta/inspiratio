@@ -1,5 +1,6 @@
 export * from './button.tsx'
 export * from './controls.tsx'
+export * from './disclosure.tsx'
 export * from './field.tsx'
 export * from './layout.tsx'
 export * from './media.tsx'

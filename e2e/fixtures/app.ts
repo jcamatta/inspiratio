@@ -63,17 +63,20 @@ type Box = {
 }
 
 const settledBox = async (locator: Locator): Promise<Box> => {
-  let previous = await locator.boundingBox()
+  const last: { box: Box | null } = { box: null }
   await expect
-    .poll(async () => {
-      const current = await locator.boundingBox()
-      const settled = current !== null && JSON.stringify(current) === JSON.stringify(previous)
-      previous = current
-      return settled
-    })
+    .poll(
+      async () => {
+        const current = await locator.boundingBox()
+        const settled = current !== null && JSON.stringify(current) === JSON.stringify(last.box)
+        last.box = current
+        return settled
+      },
+      { intervals: [250] },
+    )
     .toBe(true)
-  if (previous === null) throw new Error('missing box')
-  return previous
+  if (last.box === null) throw new Error('missing box')
+  return last.box
 }
 
 export const dragOnto = async (params: {

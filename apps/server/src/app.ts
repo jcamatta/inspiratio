@@ -17,6 +17,7 @@ import {
   createStorageQueries,
 } from './features/storage/application/storage.service.ts'
 import { storageRoutes } from './features/storage/http/storage.routes.ts'
+import type { UploadPreparer } from './shared/media/upload-copy.ts'
 import type { FolderOpener } from './shared/system/folder-opener.ts'
 import { createExpressApp } from './shared/http/express-adapter.ts'
 import { withRequest } from './shared/http/handlers.ts'
@@ -26,6 +27,7 @@ import { json } from './shared/http/responses.ts'
 export type AppDeps = ItemDeps & {
   readonly webDistDir: string | null
   readonly openFolder: FolderOpener
+  readonly prepareUpload: UploadPreparer
   /** Logger used to re-emit browser records verbatim. */
   readonly clientLogSink: ItemDeps['logger']
 }

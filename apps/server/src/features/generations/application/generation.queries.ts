@@ -9,12 +9,14 @@ import {
 import { findById } from '../../../shared/lib/collections.ts'
 import { sortBy } from '../../../shared/lib/compare.ts'
 import type { MediaStorage } from '../../../shared/media/media-storage.ts'
+import type { UploadPreparer } from '../../../shared/media/upload-copy.ts'
 import type { LibraryStore } from '../../../shared/persistence/library-store.ts'
 import { resolveReferences } from '../domain/generation.ts'
 
 export const createGenerationQueries = (deps: {
   readonly store: LibraryStore
   readonly storage: MediaStorage
+  readonly prepareUpload: UploadPreparer
 }) => {
   /** Newest first. */
   const list = (input: ListGenerationsInput): GenerationRequest[] =>
@@ -27,19 +29,23 @@ export const createGenerationQueries = (deps: {
       key: (request) => request.createdAt,
     }).reverse()
 
-  const details = (params: { readonly id: string }): Result<GenerationDetails> => {
+  const details = async (params: { readonly id: string }): Promise<Result<GenerationDetails>> => {
     const state = deps.store.read()
     const request = findById({ list: state.generations, id: params.id })
     if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
-    return ok({
-      ...request,
-      resolvedReferences: resolveReferences({
-        request,
-        items: state.items,
-        tags: state.tags,
-        absolutePathOf: deps.storage.absolutePathOf,
-      }),
+    const references = resolveReferences({
+      request,
+      items: state.items,
+      tags: state.tags,
+      absolutePathOf: deps.storage.absolutePathOf,
     })
+    const resolvedReferences = await Promise.all(
+      references.map(async (reference) => {
+        const upload = await deps.prepareUpload(reference)
+        return { ...reference, uploadPath: upload.path, uploadMimeType: upload.mimeType }
+      }),
+    )
+    return ok({ ...request, resolvedReferences })
   }
 
   return { list, details }

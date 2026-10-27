@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Dialog,
+  Disclosure,
   ExternalLink,
   ScrollArea,
   Separator,
@@ -62,6 +63,27 @@ export const DetailsView = (props: DetailsViewProps) => {
               <Button size="sm" icon={Copy} onClick={() => props.onCopyPrompt(generation.prompt)}>
                 Copy prompt
               </Button>
+              {generation.providerPrompt !== null && (
+                <Disclosure
+                  label={`Sent to ${generation.provider}`}
+                  testId="details-provider-prompt"
+                >
+                  <Stack gap={2}>
+                    <Box className="rounded-lg bg-background p-2.5">
+                      <Text variant="body" className="whitespace-pre-wrap">
+                        {generation.providerPrompt}
+                      </Text>
+                    </Box>
+                    <Button
+                      size="sm"
+                      icon={Copy}
+                      onClick={() => props.onCopyPrompt(generation.providerPrompt ?? '')}
+                    >
+                      Copy sent prompt
+                    </Button>
+                  </Stack>
+                </Disclosure>
+              )}
             </Stack>
           )}
           <Separator />

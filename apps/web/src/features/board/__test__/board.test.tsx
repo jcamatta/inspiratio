@@ -595,6 +595,12 @@ describe('Prompt cards', () => {
     expect(await screen.findByText('Generation finished')).toBeInTheDocument()
     const done = await screen.findByTestId('prompt-node-gen_run')
     await user.click(within(done).getByLabelText('Show results'))
+    await user.click(within(done).getByTestId('prompt-again'))
+    await waitFor(() => {
+      expect(api.state.generations.find((request) => request.id === 'gen_run')?.status).toBe(
+        'pending',
+      )
+    })
   })
 
   it('cancels a queued prompt and requeues a stalled one', async () => {

@@ -7,6 +7,7 @@ import {
   NodeToolbar,
   Position,
   ReactFlow,
+  type Edge,
   type NodeChange,
   type OnSelectionChangeParams,
 } from '@xyflow/react'
@@ -106,6 +107,7 @@ export type BoardViewProps = BottomBarProps & {
   readonly toolbar: SelectionToolbar
   readonly onWrapperElement: (element: HTMLDivElement | null) => void
   readonly nodes: BoardNode[]
+  readonly edges: Edge[]
   readonly isEmpty: boolean
   readonly fileDropActive: boolean
   readonly onNodesChange: (changes: NodeChange<BoardNode>[]) => void
@@ -395,7 +397,7 @@ export const BoardView = ({ onWrapperElement, ...props }: BoardViewProps) => (
       >
         <ReactFlow<BoardNode>
           nodes={props.nodes}
-          edges={[]}
+          edges={props.edges}
           nodeTypes={NODE_TYPES}
           onNodesChange={props.onNodesChange}
           onSelectionChange={props.onSelectionChange}

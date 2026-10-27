@@ -18,7 +18,7 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
    (open requests by default: `pending` and `in_progress`). With several, process them oldest first and say which ones
    you are doing. Ignore `draft` requests: the user has not pressed Generate yet.
 2. **Read it.** `inspiratio.get_generation_request { id }` returns the prompt, `kind` (image | video), `model`
-   (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`,
+   (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`, `uploadPath`, `uploadMimeType`,
    `mimeType`, `title`, `tags` and `notes`. Tags and notes explain _why_ the user picked each reference — use them.
 3. **Mark it started.** `inspiratio.start_generation { id }` (the prompt card shows "Generating…").
    **Resuming:** if the request is already `in_progress`, a previous session stopped midway (for example it ran out of
@@ -31,9 +31,10 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
    the job ids (e.g. "Waiting on job 7f3a…") so a later session can resume. The card shows the latest line next to a
    spinner and an elapsed timer; after 10 minutes without a report it is flagged as stalled.
 4. **Upload references to Higgsfield.**
-   - `higgsfield.media_upload { files: [{ filename }] }` for all references at once (use each file's basename).
-   - For every returned `upload_url`, PUT the bytes from `absolutePath`:
-     `curl -sS -X PUT -H "Content-Type: <mimeType>" --data-binary "@<absolutePath>" "<upload_url>"` and check HTTP 200.
+   - `higgsfield.media_upload { files: [{ filename }] }` for all references at once (use the basename of each `uploadPath`).
+   - For every returned `upload_url`, PUT the bytes from `uploadPath` (a resized JPEG copy when the original is large;
+     never upload `absolutePath`, big originals get dropped by the upload server):
+     `curl -sS -X PUT -H "Content-Type: <uploadMimeType>" --data-binary "@<uploadPath>" "<upload_url>"` and check HTTP 200.
    - `higgsfield.media_confirm { media_ids: [...], type: "image" }` (use `"video"` for video references,
      `type: "auto"` is not valid here — confirm images and videos in separate calls).
 5. **Pick the model.** If `model` is set, use it. If null, call `higgsfield.models_explore` with
@@ -46,8 +47,9 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
    `params: { model, prompt, medias: [{ value: <media_id>, role }], aspect_ratio, count }`. Omit `aspect_ratio` when
    the request has none. Do not set `use_unlim` unless the user asked. Wait for completion with `higgsfield.jobs_wait`
    (≤ 15 s per call, repeat until terminal) and collect the result URLs.
-8. **Send the results back.** `inspiratio.complete_generation { id, results: [{ url, model }] }` — one entry per output,
-   with the exact Higgsfield model id. Inspiratio downloads them, places them next to the references and tags them
+8. **Send the results back.** `inspiratio.complete_generation { id, results: [{ url, model }], providerPrompt }` — one
+   entry per output, with the exact Higgsfield model id, and `providerPrompt` set to the exact prompt you sent (the
+   user reads it under "Sent to higgsfield" in Details). Inspiratio downloads them, places them next to the references and tags them
    `ai-generated`, `by:higgsfield`, `model:<id>`, storing the prompt as metadata.
 9. **On any failure** (upload, credits, moderation, timeout) call `inspiratio.fail_generation { id, error }` with a short
    human-readable reason so it shows on the prompt card, then tell the user.

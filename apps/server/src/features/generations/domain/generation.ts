@@ -90,7 +90,7 @@ const TRANSITIONS: Readonly<Record<GenerationStatus, readonly GenerationStatus[]
   draft: ['pending'],
   pending: ['in_progress', 'completed', 'failed'],
   in_progress: ['completed', 'failed', 'pending'],
-  completed: [],
+  completed: ['pending'],
   failed: ['pending'],
 }
 
@@ -159,6 +159,8 @@ export const resolveReferences = (params: {
         kind: item.kind,
         mimeType: item.media.mimeType,
         absolutePath: params.absolutePathOf(item.media.fileName),
+        uploadPath: params.absolutePathOf(item.media.fileName),
+        uploadMimeType: item.media.mimeType,
         mediaUrl: mediaUrlOf(item.media),
         sourceUrl: item.metadata.sourceUrl,
         tags: tagNamesOf({ item, tags: params.tags }),
@@ -182,3 +184,17 @@ export const resultPosition = (params: {
   const top = Math.min(...params.anchors.map((box) => box.position.y))
   return { x: right + PLACEMENT_GAP, y: top + params.index * params.slotHeight }
 }
+
+/** Number of the next Generate run of a request, from the results already on the canvas. */
+export const nextRun = (params: {
+  readonly items: readonly Item[]
+  readonly requestId: string
+}): number =>
+  1 +
+  Math.max(
+    0,
+    ...params.items
+      .map((item) => item.metadata.generation)
+      .filter((generation) => generation?.requestId === params.requestId)
+      .map((generation) => generation?.run ?? 0),
+  )

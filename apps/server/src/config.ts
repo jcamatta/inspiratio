@@ -9,6 +9,7 @@ export type Config = {
   readonly libraryFile: string
   readonly mediaDir: string
   readonly trashDir: string
+  readonly uploadCacheDir: string
   readonly logFile: string
   readonly logLevel: LogLevel
   readonly logFormat: LogFormat
@@ -44,6 +45,7 @@ export const loadConfig = (params: { readonly env: Env; readonly rootDir: string
     libraryFile: join(dataDir, 'library.json'),
     mediaDir: join(dataDir, 'media'),
     trashDir: join(dataDir, 'trash'),
+    uploadCacheDir: join(dataDir, 'upload-cache'),
     logFile: join(dataDir, 'logs', 'inspiratio.ndjson'),
     logLevel: level.success ? level.data : 'info',
     logFormat: env.INSPIRATIO_LOG_FORMAT === 'json' ? 'json' : 'pretty',

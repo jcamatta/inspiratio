@@ -103,6 +103,7 @@ export type GenerationResult = z.output<typeof GenerationResultSchema>
 
 export const CompleteGenerationSchema = z.object({
   results: z.array(GenerationResultSchema).min(1).max(8),
+  providerPrompt: z.string().trim().min(1).max(8000).optional(),
 })
 export type CompleteGenerationInput = z.input<typeof CompleteGenerationSchema>
 export type CompleteGenerationCommand = z.output<typeof CompleteGenerationSchema>
@@ -124,6 +125,9 @@ export const ResolvedReferenceSchema = z.object({
   kind: ItemKindSchema,
   mimeType: z.string(),
   absolutePath: z.string(),
+  /** File to upload to the provider: the original, or a resized JPEG copy when it is large. */
+  uploadPath: z.string(),
+  uploadMimeType: z.string(),
   mediaUrl: z.string(),
   sourceUrl: z.string().nullable(),
   tags: z.array(z.string()),

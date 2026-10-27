@@ -472,3 +472,30 @@ describe('storage folders', () => {
     expect(logs.some((record) => record.msg === 'storage.open_failed')).toBe(true)
   })
 })
+
+describe('generation runs', () => {
+  it('numbers each Generate run and keeps the prompt sent to the provider', async () => {
+    const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/out.png': { body: PNG } })
+    const { app } = createTestApp({ fetch: fetchFn })
+    const id = (
+      (await request(app).post('/api/generations').send({ prompt: 'Rain' })).body as { id: string }
+    ).id
+    const result = { source: { url: 'https://cdn.higgsfield.ai/out.png' }, model: 'm' }
+    await request(app)
+      .post(`/api/generations/${id}/complete`)
+      .send({ results: [result, result], providerPrompt: 'Heavy rain at night' })
+      .expect(201)
+    await request(app).post(`/api/generations/${id}/retry`).expect(204)
+    await request(app)
+      .post(`/api/generations/${id}/complete`)
+      .send({ results: [result] })
+      .expect(201)
+    const generated = (await board(app)).items.map((item) => item.metadata.generation)
+    expect(generated.map((generation) => generation?.run)).toEqual([1, 1, 2])
+    expect(generated.map((generation) => generation?.providerPrompt)).toEqual([
+      'Heavy rain at night',
+      'Heavy rain at night',
+      null,
+    ])
+  })
+})

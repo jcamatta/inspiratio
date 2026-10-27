@@ -1,5 +1,6 @@
 import { mediaUrlOf, SYSTEM_TAGS } from '@inspiratio/shared'
 import { NodeResizer } from '@xyflow/react'
+import { LineageHandles } from './LineageHandles.tsx'
 import { Plus, Bot } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { cx } from '../../../shared/lib/cx.ts'
@@ -46,6 +47,7 @@ export const MediaNodeView = (props: MediaNodeViewProps) => {
       className="relative size-full"
       onDoubleClick={props.onStartEditingTitle}
     >
+      <LineageHandles />
       <NodeResizer isVisible={props.selected} keepAspectRatio minWidth={48} minHeight={48} />
       <Box
         className={cx(
