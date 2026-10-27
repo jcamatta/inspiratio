@@ -35,6 +35,19 @@ const seeded = () =>
     sections: [makeSection({ id: 'sec_1', title: 'Act I', position: { x: 100, y: 100 } })],
   })
 
+const draft = () =>
+  createFakeApi({
+    items: [makeItem({ id: 'itm_a' })],
+    generations: [
+      makeGeneration({
+        id: 'gen_1',
+        status: 'draft',
+        prompt: 'Storm over @1',
+        references: [{ itemId: 'itm_a', label: '@1' }],
+      }),
+    ],
+  })
+
 const transfer = ({
   data,
   files = [],
@@ -342,10 +355,9 @@ describe('Canvas', () => {
 })
 
 describe('Prompt cards', () => {
-  it('creates a prompt from the context menu and queues it', async () => {
+  it('creates a prompt from the context menu and edits its brief', async () => {
     const api = seeded()
     const { user } = renderWithApp({ ui: <AppView />, api })
-    const copy = vi.spyOn(navigator.clipboard, 'writeText')
     await user.click(
       within(await openMenuOn(await screen.findByTestId('media-node-itm_a'))).getByTestId(
         'menu-generate-image',
@@ -369,7 +381,11 @@ describe('Prompt cards', () => {
     await waitFor(() => {
       expect(api.state.generations[0]?.prompt).toBe('Storm over @1')
     })
+  })
 
+  it('changes model, aspect and variants on a draft prompt', async () => {
+    const api = draft()
+    const { user } = renderWithApp({ ui: <AppView />, api })
     const settings = await screen.findByTestId(/^prompt-node-/)
     await user.click(within(settings).getByTestId('prompt-model'))
     await user.click(await screen.findByRole('option', { name: 'Nano Banana Pro' }))
@@ -394,7 +410,12 @@ describe('Prompt cards', () => {
     await waitFor(() => {
       expect(api.state.generations[0]).toMatchObject({ model: null, aspectRatio: null })
     })
+  })
 
+  it('queues a draft prompt and copies its instruction', async () => {
+    const api = draft()
+    const { user } = renderWithApp({ ui: <AppView />, api })
+    const copy = vi.spyOn(navigator.clipboard, 'writeText')
     await user.click(
       within(await screen.findByTestId(/^prompt-node-/)).getByTestId('prompt-generate'),
     )
