@@ -80,12 +80,24 @@ describe('MCP tool handlers', () => {
     expect(JSON.parse(textOf(listed))).toEqual([
       {
         id: 'gen_1',
+        status: 'pending',
         kind: 'image',
         model: null,
         prompt: 'Rain like @1',
+        progress: null,
         references: 1,
         createdAt: 'now',
       },
+    ])
+    const open = setup({
+      'GET /api/generations': [
+        { ...request, id: 'gen_run', status: 'in_progress', progress: 'Waiting on job j_1' },
+        { ...request, id: 'gen_done', status: 'completed' },
+        { ...request, id: 'gen_draft', status: 'draft' },
+      ],
+    })
+    expect(JSON.parse(textOf(await open.handlers.listGenerationRequests({})))).toEqual([
+      expect.objectContaining({ id: 'gen_run', progress: 'Waiting on job j_1' }),
     ])
     const empty = setup({ 'GET /api/generations?status=failed': [] })
     expect(textOf(await empty.handlers.listGenerationRequests({ status: 'failed' }))).toBe(
@@ -301,7 +313,7 @@ describe('MCP API client', () => {
 describe('MCP server', () => {
   it('exposes every tool through the protocol', async () => {
     const { handlers } = setup({
-      'GET /api/generations?status=pending': [],
+      'GET /api/generations': [],
       'GET /api/tags': [],
     })
     const server = createMcpServer(handlers)
@@ -321,7 +333,7 @@ describe('MCP server', () => {
       'start_generation',
     ])
     const listed = await client.callTool({ name: 'list_generation_requests', arguments: {} })
-    expect(listed.content).toEqual([{ type: 'text', text: 'No pending generation requests.' }])
+    expect(listed.content).toEqual([{ type: 'text', text: 'No open generation requests.' }])
     for (const [name, args] of [
       ['get_generation_request', { id: 'x' }],
       ['start_generation', { id: 'x' }],

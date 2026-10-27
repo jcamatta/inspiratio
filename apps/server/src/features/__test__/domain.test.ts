@@ -279,6 +279,7 @@ describe('generation domain', () => {
 
   it('enforces the lifecycle state machine', () => {
     expect(canTransition({ from: 'completed', to: 'pending' })).toBe(false)
+    expect(canTransition({ from: 'in_progress', to: 'pending' })).toBe(true)
     const started = transition({ request: request(), to: 'in_progress', now: 'l' })
     expect(started).toMatchObject({ ok: true, value: { status: 'in_progress', error: null } })
     const failed = transition({ request: request(), to: 'failed', now: 'l' })

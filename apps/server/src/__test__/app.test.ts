@@ -249,6 +249,11 @@ describe('HTTP API (integration)', () => {
     const reported = (await request(app).get(`/api/generations/${id}`)).body as GenerationRequest
     expect(reported).toMatchObject({ status: 'in_progress', progress: 'Uploading' })
     expect(reported.queuedAt).not.toBeNull()
+    expect((await request(app).post(`/api/generations/${id}/start`)).status).toBe(204)
+    expect((await request(app).get(`/api/generations/${id}`)).body).toMatchObject({
+      status: 'in_progress',
+      progress: 'Uploading',
+    })
     expect(
       (await request(app).post(`/api/generations/${id}/progress`).send({ message: '' })).status,
     ).toBe(400)

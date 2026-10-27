@@ -20,7 +20,8 @@ export const createMcpServer = (handlers: ToolHandlers): McpServer => {
     'list_generation_requests',
     {
       title: 'List generation requests',
-      description: 'Lists prompts the user queued in Inspiratio, pending ones by default.',
+      description:
+        'Lists prompts the user queued in Inspiratio: pending and in_progress ones by default.',
       inputSchema: toolInputs.listGenerationRequests.shape,
     },
     (input) => handlers.listGenerationRequests(input),
@@ -39,7 +40,8 @@ export const createMcpServer = (handlers: ToolHandlers): McpServer => {
     'start_generation',
     {
       title: 'Start generation',
-      description: 'Marks a request as in progress so the app shows it is being worked on.',
+      description:
+        'Marks a request as in progress so the app shows it is being worked on. On a request already in progress it resumes it.',
       inputSchema: toolInputs.startGeneration.shape,
     },
     (input) => handlers.startGeneration(input),

@@ -89,7 +89,7 @@ export const updateDraft = (params: {
 const TRANSITIONS: Readonly<Record<GenerationStatus, readonly GenerationStatus[]>> = {
   draft: ['pending'],
   pending: ['in_progress', 'completed', 'failed'],
-  in_progress: ['completed', 'failed'],
+  in_progress: ['completed', 'failed', 'pending'],
   completed: [],
   failed: ['pending'],
 }

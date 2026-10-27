@@ -205,7 +205,13 @@ export const createGenerationCommands = (deps: ItemDeps) => {
     return moved.ok ? ok({ ids }) : moved
   }
 
-  const start = (params: { readonly id: string }) => move({ id: params.id, to: 'in_progress' })
+  /** Starting a request that is already in progress resumes it, e.g. from a new agent session. */
+  const start = async (params: { readonly id: string }): Promise<Result<GenerationRequest>> => {
+    const request = findById({ list: deps.store.read().generations, id: params.id })
+    if (request?.status !== 'in_progress') return move({ id: params.id, to: 'in_progress' })
+    deps.logger.info({ msg: 'generation.resumed', generationId: params.id })
+    return ok(request)
+  }
 
   const fail = (params: { readonly id: string; readonly error: string }) =>
     move({ id: params.id, to: 'failed', error: params.error })

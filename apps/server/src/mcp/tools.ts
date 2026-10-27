@@ -33,8 +33,8 @@ const ItemViewSchema = ItemSchema.extend({
 
 export const toolInputs = {
   listGenerationRequests: z.object({
-    status: GenerationStatusSchema.default('pending').describe(
-      'Filter by status. Defaults to pending (requests waiting for you).',
+    status: GenerationStatusSchema.optional().describe(
+      'Filter by status. Defaults to open requests: pending ones waiting for you and in_progress ones a previous session may have left unfinished.',
     ),
   }),
   getGenerationRequest: z.object({
@@ -47,7 +47,9 @@ export const toolInputs = {
       .string()
       .min(1)
       .max(280)
-      .describe('One short line about what you are doing now, e.g. "Uploading 2 references"'),
+      .describe(
+        'One short line about what you are doing now, e.g. "Uploading 2 references". Include Higgsfield job ids while waiting so another session can resume.',
+      ),
   }),
   completeGeneration: z.object({
     id: z.string(),
@@ -104,7 +106,7 @@ const fromResult = <T>(params: {
 
 export const HIGGSFIELD_GUIDE = [
   'How to fulfil this request with the Higgsfield MCP:',
-  '1. Call start_generation with this id. Call report_progress with one short line before each of the steps below so the user sees what you are doing.',
+  '1. Call start_generation with this id (it also resumes a request already in_progress; then read progress to see where the previous session stopped and check Higgsfield for jobs it already submitted before generating again). Call report_progress with one short line before each of the steps below so the user sees what you are doing.',
   '2. For each resolvedReference: higgsfield media_upload {filename}, then PUT the file at absolutePath to upload_url with curl (--data-binary @<absolutePath>), then media_confirm.',
   '3. Rewrite the prompt replacing each label (@1, @2…) with a description of that reference role; pass the confirmed media ids in params.medias.',
   '4. Call higgsfield generate_image (kind=image) or generate_video (kind=video) with the requested model / aspect ratio / count (pick a model with models_explore when model is null). Wait with jobs_wait.',
@@ -154,21 +156,33 @@ export const createToolHandlers = (deps: { readonly api: ApiClient; readonly log
         fromResult({
           result: await deps.api.request({
             method: 'GET',
-            path: `/api/generations?status=${input.status}`,
+            path:
+              input.status === undefined
+                ? '/api/generations'
+                : `/api/generations?status=${input.status}`,
             trace,
             schema: z.array(GenerationRequestSchema),
           }),
-          present: (requests) =>
-            requests.length === 0
-              ? `No ${input.status} generation requests.`
-              : requests.map((request) => ({
+          present: (requests) => {
+            const listed =
+              input.status === undefined
+                ? requests.filter(
+                    (request) => request.status === 'pending' || request.status === 'in_progress',
+                  )
+                : requests
+            return listed.length === 0
+              ? `No ${input.status ?? 'open'} generation requests.`
+              : listed.map((request) => ({
                   id: request.id,
+                  status: request.status,
                   kind: request.kind,
                   model: request.model,
                   prompt: request.prompt,
+                  progress: request.progress,
                   references: request.references.length,
                   createdAt: request.createdAt,
-                })),
+                }))
+          },
         }),
     })
 
