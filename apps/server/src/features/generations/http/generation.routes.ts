@@ -3,6 +3,7 @@ import {
   CreateGenerationSchema,
   FailGenerationSchema,
   ListGenerationsSchema,
+  ReportProgressSchema,
   UpdateGenerationSchema,
 } from '@inspiratio/shared'
 import { pathId, withBody, withRequest } from '../../../shared/http/handlers.ts'
@@ -65,6 +66,16 @@ export const generationRoutes = (params: {
       path: '/api/generations/:id/start',
       handler: withRequest({
         run: (request) => commands.start({ id: pathId(request) }),
+        onOk: noContent,
+      }),
+    },
+    {
+      method: 'post',
+      path: '/api/generations/:id/progress',
+      handler: withBody({
+        schema: ReportProgressSchema,
+        run: ({ body, request }) =>
+          commands.progress({ id: pathId(request), message: body.message }),
         onOk: noContent,
       }),
     },

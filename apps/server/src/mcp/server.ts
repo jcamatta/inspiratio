@@ -5,7 +5,7 @@ export const MCP_INSTRUCTIONS = [
   "Inspiratio is the user's local reference canvas for short-film inspiration.",
   'The user composes prompts in the app and drags reference images/videos into them; each becomes a generation request.',
   'Typical flow: list_generation_requests → get_generation_request (has reference files on disk + a Higgsfield guide) →',
-  'start_generation → upload references and generate with the Higgsfield MCP → complete_generation with the result URLs.',
+  'start_generation → upload references and generate with the Higgsfield MCP, calling report_progress before each step → complete_generation with the result URLs.',
   'Results are imported into the canvas automatically, tagged ai-generated / by:<provider> / model:<model>, with the prompt stored as metadata.',
 ].join(' ')
 
@@ -43,6 +43,16 @@ export const createMcpServer = (handlers: ToolHandlers): McpServer => {
       inputSchema: toolInputs.startGeneration.shape,
     },
     (input) => handlers.startGeneration(input),
+  )
+  server.registerTool(
+    'report_progress',
+    {
+      title: 'Report progress',
+      description:
+        'Shows a short status line on the prompt card (e.g. "Uploading references", "Generating with nano_banana_pro"). Call it before each step.',
+      inputSchema: toolInputs.reportProgress.shape,
+    },
+    (input) => handlers.reportProgress(input),
   )
   server.registerTool(
     'complete_generation',

@@ -242,7 +242,16 @@ describe('HTTP API (integration)', () => {
       absolutePath: `/memory/media/${ids[0] ?? ''}.png`,
     })
     expect((await request(app).get('/api/generations?status=pending')).body).toHaveLength(1)
-    expect((await request(app).post(`/api/generations/${id}/start`)).status).toBe(204)
+    expect(
+      (await request(app).post(`/api/generations/${id}/progress`).send({ message: 'Uploading' }))
+        .status,
+    ).toBe(204)
+    const reported = (await request(app).get(`/api/generations/${id}`)).body as GenerationRequest
+    expect(reported).toMatchObject({ status: 'in_progress', progress: 'Uploading' })
+    expect(reported.queuedAt).not.toBeNull()
+    expect(
+      (await request(app).post(`/api/generations/${id}/progress`).send({ message: '' })).status,
+    ).toBe(400)
     const completed = await request(app)
       .post(`/api/generations/${id}/complete`)
       .send({
@@ -264,6 +273,16 @@ describe('HTTP API (integration)', () => {
       'model:nano-banana-pro',
     ])
     expect((await request(app).post(`/api/generations/${id}/start`)).status).toBe(409)
+    expect(
+      (await request(app).post(`/api/generations/${id}/progress`).send({ message: 'Late' })).status,
+    ).toBe(409)
+    expect(
+      (await request(app).post('/api/generations/gen_x/progress').send({ message: 'x' })).status,
+    ).toBe(404)
+    expect((await request(app).get(`/api/generations/${id}`)).body).toMatchObject({
+      status: 'completed',
+      progress: null,
+    })
     expect((await request(app).delete(`/api/generations/${id}`)).status).toBe(204)
     expect((await request(app).get(`/api/generations/${id}`)).status).toBe(404)
   })
@@ -386,9 +405,12 @@ describe('HTTP API (integration)', () => {
       (
         await request(app)
           .patch(`/api/generations/${id}`)
-          .send({ position: { x: 1, y: 1 } })
+          .send({ position: { x: 1, y: 1 }, size: { width: 420, height: 520 } })
       ).status,
     ).toBe(204)
+    expect((await request(app).get(`/api/generations/${id}`)).body).toMatchObject({
+      size: { width: 420, height: 520 },
+    })
     await request(app)
       .post(`/api/generations/${id}/complete`)
       .send({ results: [{ source: { url: 'https://cdn.higgsfield.ai/r.png' }, model: 'm' }] })

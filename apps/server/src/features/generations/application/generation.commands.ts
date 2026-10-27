@@ -24,6 +24,7 @@ import { generatedTagNames } from '../../tags/domain/tag.ts'
 import {
   CARD_SIZE,
   createGenerationRequest,
+  reportProgress,
   resultPosition,
   transition,
   updateDraft,
@@ -209,6 +210,23 @@ export const createGenerationCommands = (deps: ItemDeps) => {
   const fail = (params: { readonly id: string; readonly error: string }) =>
     move({ id: params.id, to: 'failed', error: params.error })
 
+  const progress = async (params: {
+    readonly id: string
+    readonly message: string
+  }): Promise<Result<undefined>> => {
+    const request = findById({ list: deps.store.read().generations, id: params.id })
+    if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
+    const next = reportProgress({ request, message: params.message, now: deps.clock() })
+    if (!next.ok) return next
+    await save(next.value)
+    deps.logger.info({
+      msg: 'generation.progress',
+      generationId: params.id,
+      message: params.message,
+    })
+    return ok(undefined)
+  }
+
   const retry = (params: { readonly id: string }) => move({ id: params.id, to: 'pending' })
 
   const remove = async (params: { readonly id: string }): Promise<Result<undefined>> => {
@@ -221,7 +239,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
     return ok(undefined)
   }
 
-  return { create, update, submit, start, complete, fail, retry, remove }
+  return { create, update, submit, start, progress, complete, fail, retry, remove }
 }
 
 export type GenerationCommands = ReturnType<typeof createGenerationCommands>

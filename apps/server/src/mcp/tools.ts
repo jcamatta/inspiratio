@@ -41,6 +41,14 @@ export const toolInputs = {
     id: z.string().describe('Generation request id, e.g. gen_ab12cd34ef56'),
   }),
   startGeneration: z.object({ id: z.string() }),
+  reportProgress: z.object({
+    id: z.string(),
+    message: z
+      .string()
+      .min(1)
+      .max(280)
+      .describe('One short line about what you are doing now, e.g. "Uploading 2 references"'),
+  }),
   completeGeneration: z.object({
     id: z.string(),
     results: z
@@ -96,7 +104,7 @@ const fromResult = <T>(params: {
 
 export const HIGGSFIELD_GUIDE = [
   'How to fulfil this request with the Higgsfield MCP:',
-  '1. Call start_generation with this id.',
+  '1. Call start_generation with this id. Call report_progress with one short line before each of the steps below so the user sees what you are doing.',
   '2. For each resolvedReference: higgsfield media_upload {filename}, then PUT the file at absolutePath to upload_url with curl (--data-binary @<absolutePath>), then media_confirm.',
   '3. Rewrite the prompt replacing each label (@1, @2…) with a description of that reference role; pass the confirmed media ids in params.medias.',
   '4. Call higgsfield generate_image (kind=image) or generate_video (kind=video) with the requested model / aspect ratio / count (pick a model with models_explore when model is null). Wait with jobs_wait.',
@@ -200,6 +208,23 @@ export const createToolHandlers = (deps: { readonly api: ApiClient; readonly log
           }),
       })
 
+  const reportProgress = async (input: z.output<typeof toolInputs.reportProgress>) =>
+    traced({
+      tool: 'report_progress',
+      trace: await generationTrace(input.id),
+      run: async (trace) =>
+        fromResult({
+          result: await deps.api.request({
+            method: 'POST',
+            path: `/api/generations/${encodeURIComponent(input.id)}/progress`,
+            body: { message: input.message },
+            trace: childSpan(trace),
+            schema: z.undefined(),
+          }),
+          present: () => `Progress reported on ${input.id}.`,
+        }),
+    })
+
   const completeGeneration = async (input: z.output<typeof toolInputs.completeGeneration>) => {
     const results = input.results.map((result) => ({
       source: result.url === undefined ? { filePath: result.filePath ?? '' } : { url: result.url },
@@ -301,6 +326,7 @@ export const createToolHandlers = (deps: { readonly api: ApiClient; readonly log
     getGenerationRequest,
     startGeneration: transitionTool({ tool: 'start_generation', action: 'start' }),
     failGeneration: transitionTool({ tool: 'fail_generation', action: 'fail' }),
+    reportProgress,
     completeGeneration,
     searchReferences,
     listTags,

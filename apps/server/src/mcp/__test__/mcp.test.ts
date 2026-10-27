@@ -112,12 +112,21 @@ describe('MCP tool handlers', () => {
     const { handlers, calls } = setup({
       'GET /api/generations/gen_1': request,
       'POST /api/generations/gen_1/start': undefined,
+      'POST /api/generations/gen_1/progress': undefined,
       'POST /api/generations/gen_1/fail': undefined,
       'POST /api/generations/gen_1/complete': { ids: ['itm_9'] },
     })
     expect(textOf(await handlers.startGeneration({ id: 'gen_1' }))).toBe(
       'Generation gen_1 started.',
     )
+    expect(
+      textOf(await handlers.reportProgress({ id: 'gen_1', message: 'Uploading references' })),
+    ).toBe('Progress reported on gen_1.')
+    expect(calls.at(-1)).toMatchObject({
+      path: '/api/generations/gen_1/progress',
+      body: { message: 'Uploading references' },
+      traceId: TRACE_ID,
+    })
     expect(textOf(await handlers.failGeneration({ id: 'gen_1', error: 'no credits' }))).toBe(
       'Generation gen_1 marked as failed.',
     )
@@ -307,6 +316,7 @@ describe('MCP server', () => {
       'import_media',
       'list_generation_requests',
       'list_tags',
+      'report_progress',
       'search_references',
       'start_generation',
     ])
@@ -315,6 +325,7 @@ describe('MCP server', () => {
     for (const [name, args] of [
       ['get_generation_request', { id: 'x' }],
       ['start_generation', { id: 'x' }],
+      ['report_progress', { id: 'x', message: 'Working' }],
       ['fail_generation', { id: 'x', error: 'e' }],
       ['complete_generation', { id: 'x', results: [{ url: 'https://a/b.png', model: 'm' }] }],
       ['search_references', {}],

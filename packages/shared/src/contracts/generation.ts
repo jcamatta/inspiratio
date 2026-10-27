@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { IdSchema, Vec2Schema } from './geometry.ts'
+import { IdSchema, SizeSchema, Vec2Schema } from './geometry.ts'
 import { ItemKindSchema } from './item.ts'
 
 export const GenerationKindSchema = ItemKindSchema
@@ -40,6 +40,12 @@ export const GenerationRequestSchema = z.object({
   error: z.string().nullable(),
   /** Where the prompt card sits on the canvas. */
   position: Vec2Schema.default({ x: 0, y: 0 }),
+  /** Card size after a resize; null keeps the default width and fits the content. */
+  size: SizeSchema.nullable().default(null),
+  /** Latest status line reported by the agent while it works on the request. */
+  progress: z.string().nullable().default(null),
+  /** When the request was last queued, for the elapsed time on the card. */
+  queuedAt: z.string().nullable().default(null),
 })
 export type GenerationRequest = z.infer<typeof GenerationRequestSchema>
 
@@ -57,6 +63,7 @@ export const CreateGenerationSchema = z
     count: z.number().int().min(1).max(4).default(1),
     referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).default([]),
     position: Vec2Schema.optional(),
+    size: SizeSchema.nullable().optional(),
     /** false keeps the request as an editable draft card on the canvas. */
     submit: z.boolean().default(true),
   })
@@ -75,6 +82,7 @@ export const UpdateGenerationSchema = z.object({
   count: z.number().int().min(1).max(4).optional(),
   referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).optional(),
   position: Vec2Schema.optional(),
+  size: SizeSchema.nullable().optional(),
 })
 export type UpdateGenerationInput = z.infer<typeof UpdateGenerationSchema>
 
@@ -101,6 +109,9 @@ export type CompleteGenerationCommand = z.output<typeof CompleteGenerationSchema
 
 export const FailGenerationSchema = z.object({ error: z.string().trim().min(1).max(2000) })
 export type FailGenerationInput = z.infer<typeof FailGenerationSchema>
+
+export const ReportProgressSchema = z.object({ message: z.string().trim().min(1).max(280) })
+export type ReportProgressInput = z.infer<typeof ReportProgressSchema>
 
 export const ListGenerationsSchema = z.object({ status: GenerationStatusSchema.optional() })
 export type ListGenerationsInput = z.infer<typeof ListGenerationsSchema>

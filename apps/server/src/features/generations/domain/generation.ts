@@ -42,6 +42,9 @@ export const createGenerationRequest = (params: {
   resultItemIds: [],
   error: null,
   position: params.position,
+  size: params.input.size ?? null,
+  progress: null,
+  queuedAt: params.input.submit ? params.now : null,
 })
 
 export const CARD_SIZE = { width: 340, height: 420 } as const
@@ -51,7 +54,7 @@ export const updateDraft = (params: {
   readonly patch: UpdateGenerationInput
   readonly now: string
 }): Result<GenerationRequest> => {
-  const { position, referenceItemIds, ...content } = params.patch
+  const { position, size, referenceItemIds, ...content } = params.patch
   const editsContent = [
     content.prompt,
     content.kind,
@@ -78,6 +81,7 @@ export const updateDraft = (params: {
         ? params.request.references
         : labelReferences(referenceItemIds),
     position: position ?? params.request.position,
+    size: size === undefined ? params.request.size : size,
     updatedAt: params.now,
   })
 }
@@ -114,6 +118,27 @@ export const transition = (params: {
     updatedAt: params.now,
     error: params.to === 'failed' ? (params.error ?? 'Unknown error') : null,
     resultItemIds: [...params.request.resultItemIds, ...(params.resultItemIds ?? [])],
+    progress: params.to === 'in_progress' ? params.request.progress : null,
+    queuedAt: params.to === 'pending' ? params.now : params.request.queuedAt,
+  })
+}
+
+/** A status line from the agent; reporting on a pending request also marks it as started. */
+export const reportProgress = (params: {
+  readonly request: GenerationRequest
+  readonly message: string
+  readonly now: string
+}): Result<GenerationRequest> => {
+  if (params.request.status !== 'pending' && params.request.status !== 'in_progress')
+    return err({
+      code: 'invalid_state',
+      message: `Generation ${params.request.id} is ${params.request.status}`,
+    })
+  return ok({
+    ...params.request,
+    status: 'in_progress',
+    progress: params.message,
+    updatedAt: params.now,
   })
 }
 
