@@ -33,6 +33,10 @@ export const apiError = (params: {
 export const isApiRequestError = (value: unknown): value is ApiRequestError =>
   value instanceof Error && 'kind' in value && value.kind === 'api_error'
 
+export const SERVER_DOWN_MESSAGE = 'Inspiratio server is not running'
+
+const GATEWAY_STATUSES: readonly number[] = [502, 503, 504]
+
 export type RequestParams<S extends z.ZodType> = {
   readonly method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   readonly path: string
@@ -59,20 +63,39 @@ export const createHttpClient = (deps: {
     const startedAt = performance.now()
     deps.logger.debug({ msg: 'api.request', trace, method: params.method, path: params.path })
 
-    const response = await deps.fetchFn(params.path, {
-      method: params.method,
-      headers,
-      body: params.form ?? (params.body === undefined ? null : JSON.stringify(params.body)),
-    })
+    const response = await deps
+      .fetchFn(params.path, {
+        method: params.method,
+        headers,
+        body: params.form ?? (params.body === undefined ? null : JSON.stringify(params.body)),
+      })
+      .catch(() => {
+        deps.logger.warn({
+          msg: 'api.unreachable',
+          trace,
+          method: params.method,
+          path: params.path,
+        })
+        throw apiError({
+          message: SERVER_DOWN_MESSAGE,
+          code: 'server_down',
+          status: 0,
+          traceId: trace.traceId,
+        })
+      })
     const text = await response.text()
     const payload = parseJsonBody(text)
     const durationMs = Math.round(performance.now() - startedAt)
 
     if (!response.ok) {
       const parsed = ApiErrorSchema.safeParse(payload)
+      const serverDown = !parsed.success && GATEWAY_STATUSES.includes(response.status)
+      const fallback = serverDown
+        ? { message: SERVER_DOWN_MESSAGE, code: 'server_down' }
+        : { message: `Request failed (${response.status})`, code: 'unknown' }
       const error = apiError({
-        message: parsed.success ? parsed.data.error.message : `Request failed (${response.status})`,
-        code: parsed.success ? parsed.data.error.code : 'unknown',
+        message: parsed.success ? parsed.data.error.message : fallback.message,
+        code: parsed.success ? parsed.data.error.code : fallback.code,
         status: response.status,
         traceId: trace.traceId,
       })

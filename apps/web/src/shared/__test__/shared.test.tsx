@@ -6,7 +6,13 @@ import { Image } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { apiError, createHttpClient, isApiRequestError, startAction } from '../api/http-client.ts'
+import {
+  apiError,
+  createHttpClient,
+  isApiRequestError,
+  SERVER_DOWN_MESSAGE,
+  startAction,
+} from '../api/http-client.ts'
 import { describeError, useCommand } from '../api/use-command.ts'
 import { createBrowserLogger, installLogging, toRecord } from '../observability/logger.ts'
 import {
@@ -66,17 +72,36 @@ describe('http client', () => {
       .catch((thrown: unknown) => thrown)
     expect(isApiRequestError(error) && error.code).toBe('conflict')
     const plain = createHttpClient({
-      fetchFn: respond({ body: '<html>', status: 502 }),
+      fetchFn: respond({ body: '<html>', status: 500 }),
       logger: silent,
     })
     await expect(plain.request({ method: 'GET', path: '/x', schema: z.unknown() })).rejects.toThrow(
-      'Request failed (502)',
+      'Request failed (500)',
     )
     const invalid = createHttpClient({ fetchFn: respond({ body: '{"a":1}' }), logger: silent })
     await expect(
       invalid.request({ method: 'GET', path: '/x', schema: z.array(z.number()) }),
     ).rejects.toThrow('Unexpected response')
     expect(isApiRequestError(new Error('x'))).toBe(false)
+  })
+
+  it('reports a stopped server instead of a raw network error', async () => {
+    const proxied = createHttpClient({
+      fetchFn: respond({ body: '', status: 502 }),
+      logger: silent,
+    })
+    const viaProxy: unknown = await proxied
+      .request({ method: 'GET', path: '/x', schema: z.unknown() })
+      .catch((thrown: unknown) => thrown)
+    expect(isApiRequestError(viaProxy) && viaProxy.code).toBe('server_down')
+    const unreachable = createHttpClient({
+      fetchFn: () => Promise.reject(new TypeError('Failed to fetch')),
+      logger: silent,
+    })
+    const direct: unknown = await unreachable
+      .request({ method: 'POST', path: '/x', schema: z.unknown() })
+      .catch((thrown: unknown) => thrown)
+    expect(isApiRequestError(direct) && direct.message).toBe(SERVER_DOWN_MESSAGE)
   })
 
   it('describes errors for toasts', () => {
