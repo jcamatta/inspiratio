@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "inspiratio": {
+      "command": "node",
+      "args": ["--import", "tsx", "apps/server/src/mcp/main.ts"],
+      "env": {
+        "INSPIRATIO_API_URL": "http://127.0.0.1:4319"
+      }
+    }
+  }
+}
