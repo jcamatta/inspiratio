@@ -1,0 +1,103 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@xyflow/react/dist/style.css';
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
+
+  /* Base palette */
+  --color-mint-50: #f3fcf9;
+  --color-mint-100: #d4f7eb;
+  --color-mint-200: #b2ebd7;
+  --color-mint-500: #58fcc3;
+  --color-mint-700: #136c4d;
+  --color-mint-950: #0d261d;
+
+  --color-coral-50: #feefec;
+  --color-coral-500: #fc7858;
+  --color-coral-700: #ad3b1f;
+
+  /* Semantic tokens */
+  --color-background: var(--color-mint-50);
+  --color-surface: var(--color-mint-100);
+  --color-panel: #ffffff;
+  --color-foreground: var(--color-mint-950);
+  --color-muted-foreground: #4f6b60;
+  --color-border: var(--color-mint-100);
+  --color-border-strong: var(--color-mint-200);
+  --color-input: var(--color-mint-700);
+
+  --color-primary: var(--color-mint-500);
+  --color-primary-foreground: var(--color-mint-950);
+
+  --color-accent: var(--color-coral-500);
+  --color-accent-foreground: var(--color-mint-950);
+
+  --color-link: var(--color-mint-700);
+  --color-danger: var(--color-coral-700);
+  --color-danger-surface: var(--color-coral-50);
+
+  /* Tag palette (background / foreground pairs) */
+  --color-tag-mint: var(--color-mint-100);
+  --color-tag-mint-fg: var(--color-mint-700);
+  --color-tag-coral: var(--color-coral-50);
+  --color-tag-coral-fg: var(--color-coral-700);
+  --color-tag-sky: #e3f1fd;
+  --color-tag-sky-fg: #1d5a8c;
+  --color-tag-amber: #fdf3dc;
+  --color-tag-amber-fg: #8a5a00;
+  --color-tag-violet: #efe9fd;
+  --color-tag-violet-fg: #5b3aa8;
+  --color-tag-slate: #eaefed;
+  --color-tag-slate-fg: #3c4f48;
+
+  --shadow-panel: 0 1px 2px rgb(13 38 29 / 0.06), 0 8px 24px rgb(13 38 29 / 0.08);
+  --radius-panel: 14px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  ::selection {
+    background: var(--color-mint-500);
+    color: var(--color-mint-950);
+  }
+}
+
+/* React Flow theming through its CSS variables */
+.react-flow {
+  --xy-background-color: var(--color-background);
+  --xy-background-pattern-color: var(--color-mint-200);
+  --xy-node-border-radius: 6px;
+  --xy-selection-background-color: rgb(88 252 195 / 0.12);
+  --xy-selection-border: 1px dashed var(--color-mint-700);
+  --xy-resize-background-color: var(--color-mint-700);
+  --xy-minimap-background-color: var(--color-panel);
+  --xy-minimap-mask-background-color: rgb(212 247 235 / 0.6);
+  --xy-minimap-node-background-color: var(--color-mint-200);
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node.dragging {
+  cursor: grabbing;
+}
+
+.react-flow__resize-control.handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1.5px solid var(--color-panel);
+}
