@@ -32,30 +32,32 @@ Open http://localhost:5319. The API runs on http://127.0.0.1:4319. Your library 
 ### Generating with Claude Code
 
 1. Make sure the Higgsfield MCP is connected in Claude Code. This repo's `.mcp.json` registers the `inspiratio` MCP server.
-2. In the app, right-click references → **Generate image** / **Generate video** (or right-click the canvas → **New prompt**
-   and drop images onto the card). Write the brief, pick the kind, model (**Auto** by default), aspect and variants, and
+2. In the app, right-click references → **Generate image** / **Generate video** (or right-click the canvas → **New image prompt** /
+   **New video prompt** and drop images onto the card). Write the brief, pick the kind, model (**Auto** by default), aspect and variants, and
    press **Generate**. An instruction is copied to your clipboard.
 3. Paste it into Claude Code in this folder, for example
    _"Use the inspiratio-generate skill to fulfil Inspiratio generation request gen_…"_.
    The skill (`.claude/skills/inspiratio-generate`) uploads the references, generates with Higgsfield and imports the result.
 
-A prompt card moves through `draft → pending → in_progress → completed | failed`; a failed card can be retried.
+A prompt card moves through `draft → pending → in_progress → completed | failed`; a failed card can be retried. While
+it is queued or generating, the card shows a spinner, the elapsed time and the latest status line Claude reported
+(`report_progress`). Select a prompt card and drag its handles to resize it; the brief grows with it.
 
 ### Canvas controls
 
-| Action         | How                                                                                                      |
-| -------------- | -------------------------------------------------------------------------------------------------------- |
-| Import         | Drop files / images from a web page, `Ctrl+V` or right-click canvas › **Import from URL…**               |
-| Zoom / pan     | Scroll to zoom · `Space` + drag or middle-click drag to pan · bottom bar zoom and fit                    |
-| Select         | Click · `Shift`/`Ctrl` click · drag a box on empty canvas · right-click › **Select all images**          |
-| Rename         | Double-click an image caption or section title, or right-click › **Rename**                              |
-| Tags           | Select an image and add or remove tags inline, or right-click › **Add tags**                             |
-| Resize         | Drag the corner handles of a selected item (aspect ratio is kept)                                        |
-| Sections       | Right-click canvas › **Add section**; drag items in and out                                              |
-| Prompts        | Right-click images › **Generate image/video**, or canvas › **New prompt**; drop images onto a draft card |
-| Undo / redo    | `Ctrl+Z` · `Ctrl+Shift+Z` / `Ctrl+Y` · bottom bar                                                        |
-| Delete         | `Delete` / `Backspace` or right-click › Delete (files go to `data/trash` and come back on undo)          |
-| View / details | Right-click › **View full size** (zoom, pan, close) or **Details**                                       |
+| Action         | How                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Import         | Drop files / images from a web page, `Ctrl+V` or right-click canvas › **Import from URL…**                           |
+| Zoom / pan     | Scroll to zoom · `Space` + drag or middle-click drag to pan · bottom bar zoom and fit                                |
+| Select         | Click · `Shift`/`Ctrl` click · drag a box on empty canvas · right-click › **Select all images**                      |
+| Rename         | Double-click an image caption or section title, or right-click › **Rename**                                          |
+| Tags           | Select an image and add or remove tags inline, or right-click › **Add tags**                                         |
+| Resize         | Drag the handles of a selected item (aspect ratio is kept), section or prompt card                                   |
+| Sections       | Right-click canvas › **Add section**; drag items in and out                                                          |
+| Prompts        | Right-click images › **Generate image/video**, or canvas › **New image/video prompt**; drop images onto a draft card |
+| Undo / redo    | `Ctrl+Z` · `Ctrl+Shift+Z` / `Ctrl+Y` · bottom bar                                                                    |
+| Delete         | `Delete` / `Backspace` or right-click › Delete (files go to `data/trash` and come back on undo)                      |
+| View / details | Right-click › **View full size** (zoom, pan, close) or **Details**                                                   |
 
 The bottom bar holds undo/redo, zoom out/in with the current zoom level, fit to screen and the selection count.
 

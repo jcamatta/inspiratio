@@ -21,6 +21,10 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
    (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`,
    `mimeType`, `title`, `tags` and `notes`. Tags and notes explain _why_ the user picked each reference — use them.
 3. **Mark it started.** `inspiratio.start_generation { id }` (the prompt card shows "Generating…").
+   From here on, call `inspiratio.report_progress { id, message }` before every step below and while waiting on long
+   jobs (roughly every minute), with one short line such as "Uploading 2 references", "Picking a model",
+   "Generating 2 images with nano_banana_pro" or "Still rendering, 3 of 4 done". The card shows the latest line next
+   to a spinner and an elapsed timer.
 4. **Upload references to Higgsfield.**
    - `higgsfield.media_upload { files: [{ filename }] }` for all references at once (use each file's basename).
    - For every returned `upload_url`, PUT the bytes from `absolutePath`:
