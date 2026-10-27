@@ -1,0 +1,98 @@
+import { z } from 'zod'
+import { IdSchema } from './geometry.ts'
+import { ItemKindSchema } from './item.ts'
+
+export const GenerationKindSchema = ItemKindSchema
+export type GenerationKind = z.infer<typeof GenerationKindSchema>
+
+export const GENERATION_STATUSES = ['pending', 'in_progress', 'completed', 'failed'] as const
+export const GenerationStatusSchema = z.enum(GENERATION_STATUSES)
+export type GenerationStatus = z.infer<typeof GenerationStatusSchema>
+
+export const MAX_REFERENCES = 14
+
+export const GenerationReferenceSchema = z.object({
+  itemId: IdSchema,
+  /** Token used inside the prompt, e.g. "@1". */
+  label: z.string(),
+})
+export type GenerationReference = z.infer<typeof GenerationReferenceSchema>
+
+export const GenerationRequestSchema = z.object({
+  id: IdSchema,
+  prompt: z.string(),
+  kind: GenerationKindSchema,
+  model: z.string().nullable(),
+  aspectRatio: z.string().nullable(),
+  count: z.number().int().min(1).max(4),
+  references: z.array(GenerationReferenceSchema),
+  status: GenerationStatusSchema,
+  traceId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  resultItemIds: z.array(IdSchema),
+  error: z.string().nullable(),
+})
+export type GenerationRequest = z.infer<typeof GenerationRequestSchema>
+
+export const CreateGenerationSchema = z.object({
+  prompt: z.string().trim().min(1).max(8000),
+  kind: GenerationKindSchema.default('image'),
+  model: z.string().trim().min(1).max(80).nullable().default(null),
+  aspectRatio: z
+    .string()
+    .regex(/^\d{1,2}:\d{1,2}$/)
+    .nullable()
+    .default(null),
+  count: z.number().int().min(1).max(4).default(1),
+  referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).default([]),
+})
+export type CreateGenerationInput = z.input<typeof CreateGenerationSchema>
+export type CreateGenerationCommand = z.output<typeof CreateGenerationSchema>
+
+export const GenerationResultSourceSchema = z.union([
+  z.object({ url: z.url({ protocol: /^https?$/ }) }),
+  z.object({ filePath: z.string().min(1) }),
+])
+export type GenerationResultSource = z.infer<typeof GenerationResultSourceSchema>
+
+export const GenerationResultSchema = z.object({
+  source: GenerationResultSourceSchema,
+  model: z.string().trim().min(1).max(80),
+  provider: z.string().trim().min(1).max(40).default('higgsfield'),
+  title: z.string().trim().max(200).optional(),
+})
+export type GenerationResultInput = z.input<typeof GenerationResultSchema>
+export type GenerationResult = z.output<typeof GenerationResultSchema>
+
+export const CompleteGenerationSchema = z.object({
+  results: z.array(GenerationResultSchema).min(1).max(8),
+})
+export type CompleteGenerationInput = z.input<typeof CompleteGenerationSchema>
+export type CompleteGenerationCommand = z.output<typeof CompleteGenerationSchema>
+
+export const FailGenerationSchema = z.object({ error: z.string().trim().min(1).max(2000) })
+export type FailGenerationInput = z.infer<typeof FailGenerationSchema>
+
+export const ListGenerationsSchema = z.object({ status: GenerationStatusSchema.optional() })
+export type ListGenerationsInput = z.infer<typeof ListGenerationsSchema>
+
+/** A reference resolved with everything an agent needs to upload it to a generation provider. */
+export const ResolvedReferenceSchema = z.object({
+  label: z.string(),
+  itemId: IdSchema,
+  title: z.string(),
+  kind: ItemKindSchema,
+  mimeType: z.string(),
+  absolutePath: z.string(),
+  mediaUrl: z.string(),
+  sourceUrl: z.string().nullable(),
+  tags: z.array(z.string()),
+  notes: z.string(),
+})
+export type ResolvedReference = z.infer<typeof ResolvedReferenceSchema>
+
+export const GenerationDetailsSchema = GenerationRequestSchema.extend({
+  resolvedReferences: z.array(ResolvedReferenceSchema),
+})
+export type GenerationDetails = z.infer<typeof GenerationDetailsSchema>
