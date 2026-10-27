@@ -22,7 +22,7 @@
 - **apps/server**: Express API, also hosts the MCP server (`src/mcp`) which talks to the API over HTTP so the app
   and the agent always see the same state.
 - **apps/web**: Vite + React app. Canvas only, with no toolbar, sidebar or drawer: every action is in the context menu
-  (`Board.view.tsx`), on a node (double-click rename, inline tags on selected images, prompt card controls) or in the
+  (`Board.view.tsx`), in the floating selection toolbar (React Flow `NodeToolbar` over the selected images), on a node (double-click rename, inline tags on selected images, prompt card controls) or in the
   bottom bar (undo/redo, zoom, fit, selection count). Dialogs: `features/viewer` (zoom/pan/close) and
   `features/details`. `features/history` holds the `HistoryProvider`: each board change records its inverse so
   `Ctrl+Z` undoes and `Ctrl+Shift+Z` / `Ctrl+Y` redo it.

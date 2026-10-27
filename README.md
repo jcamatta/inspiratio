@@ -48,21 +48,22 @@ session can also pick it up directly, since `list_generation_requests` returns u
 
 ### Canvas controls
 
-| Action         | How                                                                                                                  |
-| -------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Import         | Drop files / images from a web page, `Ctrl+V` or right-click canvas › **Import from URL…**                           |
-| Zoom / pan     | Scroll to zoom · `Space` + drag or middle-click drag to pan · bottom bar zoom and fit                                |
-| Select         | Click · `Shift`/`Ctrl` click · drag a box on empty canvas · right-click › **Select all images**                      |
-| Rename         | Double-click an image caption or section title, or right-click › **Rename**                                          |
-| Tags           | Select an image and add or remove tags inline, or right-click › **Add tags**                                         |
-| Resize         | Drag the handles of a selected item (aspect ratio is kept), section or prompt card                                   |
-| Sections       | Right-click canvas › **Add section**; drag items in and out                                                          |
-| Prompts        | Right-click images › **Generate image/video**, or canvas › **New image/video prompt**; drop images onto a draft card |
-| Undo / redo    | `Ctrl+Z` · `Ctrl+Shift+Z` / `Ctrl+Y` · bottom bar                                                                    |
-| Delete         | `Delete` / `Backspace` or right-click › Delete (files go to `data/trash` and come back on undo)                      |
-| View / details | Right-click › **View full size** (zoom, pan, close) or **Details**                                                   |
+| Action         | How                                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Import         | Drop files / images from a web page, `Ctrl+V` or right-click canvas › **Import from URL…**                                                     |
+| Zoom / pan     | Scroll to zoom · `Space` + drag or middle-click drag to pan · bottom bar zoom and fit                                                          |
+| Select         | Click · `Shift`/`Ctrl` click · drag a box on empty canvas · right-click › **Select all images**                                                |
+| Rename         | Double-click an image caption or section title, or right-click › **Rename**                                                                    |
+| Tags           | Select an image and add or remove tags inline, or right-click › **Add tags**                                                                   |
+| Resize         | Drag the handles of a selected item (aspect ratio is kept), section or prompt card                                                             |
+| Sections       | Select one or more images › **Create section** in the floating toolbar or right-click menu; or canvas › **Add section**; drag items in and out |
+| Prompts        | Right-click images › **Generate image/video**, or canvas › **New image/video prompt**; drop images onto a draft card                           |
+| Undo / redo    | `Ctrl+Z` · `Ctrl+Shift+Z` / `Ctrl+Y` · bottom bar                                                                                              |
+| Delete         | `Delete` / `Backspace` or right-click › Delete (files go to `data/trash` and come back on undo)                                                |
+| View / details | Right-click › **View full size** (zoom, pan, close) or **Details**                                                                             |
 
-The bottom bar holds undo/redo, zoom out/in with the current zoom level, fit to screen and the selection count.
+A floating toolbar above the selected images offers Generate image/video, Create section, View full size and Details
+(single image) and Delete. The bottom bar holds undo/redo, zoom out/in with the current zoom level, fit to screen and the selection count.
 
 ## Scripts
 
