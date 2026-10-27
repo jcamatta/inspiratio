@@ -29,6 +29,10 @@ npm run dev
 Open http://localhost:5319. The API runs on http://127.0.0.1:4319. Your library lives in `./data` (media files,
 `library.json`, logs, trash); set `INSPIRATIO_DATA_DIR` to keep it elsewhere.
 
+On Windows, `scripts\launch.cmd` builds the web app, starts the server in a minimized "Inspiratio server" window
+(close it to stop) and opens http://127.0.0.1:4319 as an Edge app window. Point a desktop shortcut at it with
+`scripts\inspiratio.ico` as its icon.
+
 ### Generating with Claude Code
 
 1. Make sure the Higgsfield MCP is connected in Claude Code. This repo's `.mcp.json` registers the `inspiratio` MCP server.
