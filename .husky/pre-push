@@ -1,0 +1,6 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+pattern='^(main|develop|(feat|fix|chore|docs|refactor|test|perf|build|ci|style|revert)/[a-z0-9._-]+)$'
+if ! echo "$branch" | grep -Eq "$pattern"; then
+  echo "Branch '$branch' does not follow conventional branch naming: <type>/<kebab-description>"
+  exit 1
+fi
