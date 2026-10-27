@@ -55,14 +55,34 @@ export const nodeByTitle = (params: { readonly page: Page; readonly title: strin
     .locator('[data-testid^="media-node-"]')
     .filter({ has: params.page.getByText(params.title, { exact: true }) })
 
+type Box = {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+const settledBox = async (locator: Locator): Promise<Box> => {
+  let previous = await locator.boundingBox()
+  await expect
+    .poll(async () => {
+      const current = await locator.boundingBox()
+      const settled = current !== null && JSON.stringify(current) === JSON.stringify(previous)
+      previous = current
+      return settled
+    })
+    .toBe(true)
+  if (previous === null) throw new Error('missing box')
+  return previous
+}
+
 export const dragOnto = async (params: {
   readonly page: Page
   readonly source: Locator
   readonly target: Locator
 }): Promise<void> => {
-  const from = await params.source.boundingBox()
-  const to = await params.target.boundingBox()
-  if (from === null || to === null) throw new Error('missing boxes')
+  const from = await settledBox(params.source)
+  const to = await settledBox(params.target)
   await params.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await params.page.mouse.down()
   await params.page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 15 })
