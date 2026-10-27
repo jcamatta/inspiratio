@@ -1,14 +1,15 @@
 import type { GenerationKind } from '@inspiratio/shared'
 import { useReactFlow, type NodeProps } from '@xyflow/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { notify } from '../../../shared/ui/index.ts'
 import {
   AUTO_MODEL,
   claudeInstruction,
   danglingTokens,
+  formatElapsed,
   modelsFor,
 } from '../../generation/domain/prompt.ts'
-import { useGenerationCommands } from '../../generation/generation.hooks.ts'
+import { isActive, useGenerationCommands } from '../../generation/generation.hooks.ts'
 import { useBoardActions } from '../board.actions.ts'
 import type { PromptFlowNode, PromptNodeData } from '../domain/flow-mapping.ts'
 import { PromptNodeView } from './PromptNode.view.tsx'
@@ -43,6 +44,17 @@ const PromptCard = ({
     setSynced(request.prompt)
     setBrief(request.prompt)
   }
+  const active = isActive(request)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    const timer = setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+    return () => {
+      clearInterval(timer)
+    }
+  }, [active])
 
   const saveBrief = async () => {
     if (brief.trim() !== request.prompt)
@@ -77,6 +89,9 @@ const PromptCard = ({
       models={modelsFor(request.kind)}
       model={request.model ?? AUTO_MODEL}
       dangling={dangling}
+      elapsed={
+        active ? formatElapsed(now - Date.parse(request.queuedAt ?? request.updatedAt)) : null
+      }
       canGenerate={brief.trim() !== '' && dangling.length === 0}
       onSettingsChange={(settings: PromptSettings) => {
         void generations.update({

@@ -119,3 +119,14 @@ export const ASPECT_RATIOS = [
 
 export const claudeInstruction = (generationId: string): string =>
   `Use the inspiratio-generate skill to fulfil Inspiratio generation request ${generationId}.`
+
+const pad = (value: number): string => String(value).padStart(2, '0')
+
+/** Elapsed time on a queued card: m:ss, or h:mm:ss past an hour. */
+export const formatElapsed = (milliseconds: number): string => {
+  const total = Math.max(0, Math.floor(milliseconds / 1000))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = pad(total % 60)
+  return hours > 0 ? `${String(hours)}:${pad(minutes)}:${seconds}` : `${String(minutes)}:${seconds}`
+}

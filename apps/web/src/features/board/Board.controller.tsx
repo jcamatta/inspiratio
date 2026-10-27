@@ -269,8 +269,8 @@ export const Board = () => {
         menuTarget.kind === 'item' ? targetIds : menuTarget.kind === 'pane' ? [] : [menuTarget.id]
       void flow.deleteElements({ nodes: ids.map((id) => ({ id })) })
     },
-    onNewPrompt: () => {
-      actions.createPrompt({ kind: 'image', referenceItemIds: [], position: menuTarget.position })
+    onNewPrompt: (kind) => {
+      actions.createPrompt({ kind, referenceItemIds: [], position: menuTarget.position })
     },
     onAddSection: () => {
       actions.createSection(menuTarget.position)

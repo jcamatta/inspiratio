@@ -5,7 +5,17 @@ import {
   type GenerationStatus,
   type Item,
 } from '@inspiratio/shared'
-import { ClipboardCopy, Film, GripHorizontal, Image, RotateCw, Sparkles, X } from 'lucide-react'
+import { NodeResizer } from '@xyflow/react'
+import {
+  ClipboardCopy,
+  Film,
+  GripHorizontal,
+  Image,
+  LoaderCircle,
+  RotateCw,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { cx } from '../../../shared/lib/cx.ts'
 import {
   Box,
@@ -32,6 +42,7 @@ export type PromptNodeViewProps = {
   readonly models: readonly ModelOption[]
   readonly model: string
   readonly dangling: readonly string[]
+  readonly elapsed: string | null
   readonly canGenerate: boolean
   readonly onSettingsChange: (settings: PromptSettings) => void
   readonly onRemoveReference: (itemId: string) => void
@@ -115,11 +126,12 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
       testId={`prompt-node-${request.id}`}
       data-status={request.status}
       className={cx(
-        'flex w-full flex-col gap-3 p-3 transition-shadow',
+        'flex size-full flex-col gap-3 p-3 transition-shadow',
         props.selected && 'outline-3 outline-offset-3 outline-mint-700',
         dropActive && 'outline-3 outline-offset-3 outline-accent',
       )}
     >
+      <NodeResizer isVisible={props.selected} minWidth={300} minHeight={260} />
       <Stack
         direction="row"
         align="center"
@@ -178,8 +190,9 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
 
       {isDraft ? (
         <>
-          <Stack gap={1}>
+          <Stack gap={1} className="min-h-0 flex-1">
             <TextArea
+              fill
               label="Brief"
               value={props.brief}
               onValueChange={props.onBriefChange}
@@ -242,6 +255,17 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
             {request.kind} · {request.model ?? 'auto'}
             {request.aspectRatio === null ? '' : ` · ${request.aspectRatio}`}
           </Text>
+          {props.elapsed !== null && (
+            <Stack direction="row" align="center" gap={2} testId="prompt-activity">
+              <LoaderCircle size={14} className="shrink-0 animate-spin text-primary" />
+              <Text variant="caption" className="min-w-0 flex-1 truncate" testId="prompt-progress">
+                {request.progress ?? status.label}
+              </Text>
+              <Text variant="mono" className="shrink-0" testId="prompt-elapsed">
+                {props.elapsed}
+              </Text>
+            </Stack>
+          )}
           {request.error !== null && (
             <Text variant="caption" className="text-danger" testId="prompt-error">
               {request.error}

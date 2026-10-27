@@ -124,7 +124,8 @@ export const toFlowNodes = (params: {
     id: request.id,
     type: 'prompt',
     position: positionOf({ id: request.id, position: request.position }),
-    width: PROMPT_CARD_WIDTH,
+    width: request.size?.width ?? PROMPT_CARD_WIDTH,
+    ...(request.size === null ? {} : { height: request.size.height }),
     zIndex: PROMPT_Z_INDEX,
     selected: kept(request.id)?.selected ?? false,
     dragHandle: '.prompt-drag-handle',
@@ -208,12 +209,18 @@ export type SectionPatch = {
   readonly size?: Size
 }
 
+export type PromptPatch = {
+  readonly id: string
+  readonly position: Vec2
+  readonly size?: Size
+}
+
 export type ReferenceDrop = { readonly promptId: string; readonly itemIds: string[] }
 
 export type PersistencePlan = {
   readonly items: LayoutChange[]
   readonly sections: SectionPatch[]
-  readonly prompts: { readonly id: string; readonly position: Vec2 }[]
+  readonly prompts: PromptPatch[]
   readonly drops: ReferenceDrop[]
 }
 
@@ -269,7 +276,11 @@ export const planPersistence = (params: {
     const node = params.nodes.find((candidate) => candidate.id === change.id)
     if (node === undefined) continue
     if (isPromptNode(node)) {
-      if (finishedDrag) plan.prompts.push({ id: node.id, position: roundVec(node.position) })
+      plan.prompts.push(
+        finishedDrag
+          ? { id: node.id, position: roundVec(node.position) }
+          : { id: node.id, position: roundVec(node.position), size: roundSize(sizeOf(node)) },
+      )
     } else if (isSectionNode(node)) {
       plan.sections.push(
         finishedDrag

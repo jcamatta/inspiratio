@@ -151,7 +151,7 @@ describe('planPersistence', () => {
         change({
           type: 'dimensions',
           id: 'gen_draft',
-          resizing: false,
+          resizing: true,
           dimensions: { width: 1, height: 1 },
         }),
       ],
@@ -196,11 +196,19 @@ describe('planPersistence', () => {
   })
 
   it('persists finished resizes', () => {
-    const list = nodes().map((node) =>
-      node.id === 'itm_a' ? { ...node, width: 400.4, height: 10 } : node,
-    )
+    const list = nodes().map((node) => {
+      if (node.id === 'itm_a') return { ...node, width: 400.4, height: 10 }
+      if (node.id === 'gen_draft') return { ...node, width: 420.2, height: 515.7 }
+      return node
+    })
     const plan = planPersistence({
       changes: [
+        change({
+          type: 'dimensions',
+          id: 'gen_draft',
+          resizing: false,
+          dimensions: { width: 420, height: 516 },
+        }),
         change({
           type: 'dimensions',
           id: 'itm_a',
@@ -221,6 +229,9 @@ describe('planPersistence', () => {
     ])
     expect(plan.sections).toEqual([
       { id: 'sec_1', position: { x: 500, y: 500 }, size: { width: 400, height: 300 } },
+    ])
+    expect(plan.prompts).toEqual([
+      { id: 'gen_draft', position: expect.any(Object), size: { width: 420, height: 516 } },
     ])
   })
 })

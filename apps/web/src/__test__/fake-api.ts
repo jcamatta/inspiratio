@@ -64,6 +64,9 @@ export const makeGeneration = (
   resultItemIds: [],
   error: null,
   position: { x: 600, y: 0 },
+  size: null,
+  progress: null,
+  queuedAt: null,
   ...overrides,
 })
 
@@ -288,6 +291,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
             x: 600,
             y: 0,
           },
+          size: (body.size as GenerationRequest['size'] | undefined) ?? null,
           references: [...referenceItemIds.entries()].map(([index, itemId]) => ({
             itemId,
             label: `@${String(index + 1)}`,
@@ -314,6 +318,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
           ...(body.position === undefined
             ? {}
             : { position: body.position as GenerationRequest['position'] }),
+          ...('size' in body ? { size: body.size as GenerationRequest['size'] } : {}),
           ...(ids === undefined
             ? {}
             : {
@@ -332,7 +337,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
             code: 'validation',
             message: 'Write a prompt before generating',
           })
-        replace({ ...found, status: 'pending' })
+        replace({ ...found, status: 'pending', queuedAt: NOW })
         return json({ body: { id: found.id } })
       }
       if (method === 'POST' && action === 'retry') {

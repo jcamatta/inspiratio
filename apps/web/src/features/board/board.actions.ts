@@ -55,13 +55,14 @@ export const useBoardActions = () => {
       readonly request: Partial<GenerationRequest> & { readonly referenceItemIds?: string[] }
     }): Step =>
     async () => {
-      const { referenceItemIds, prompt, position } = params.request
+      const { referenceItemIds, prompt, position, size } = params.request
       await generations.update({
         id: params.id,
         patch: {
           ...(referenceItemIds === undefined ? {} : { referenceItemIds }),
           ...(prompt === undefined ? {} : { prompt }),
           ...(position === undefined ? {} : { position }),
+          ...(size === undefined ? {} : { size }),
         },
       })
     }
@@ -76,11 +77,20 @@ export const useBoardActions = () => {
       const inverse = inverseSectionPatch({ patch, sections: board.sections })
       if (inverse !== null) undo.push(patchSection(inverse))
     }
-    for (const move of plan.prompts) {
-      const before = requestOf(move.id)
-      redo.push(patchPrompt({ id: move.id, request: { position: move.position } }))
+    for (const patch of plan.prompts) {
+      const before = requestOf(patch.id)
+      const { id, ...request } = patch
+      redo.push(patchPrompt({ id, request }))
       if (before !== undefined)
-        undo.push(patchPrompt({ id: move.id, request: { position: before.position } }))
+        undo.push(
+          patchPrompt({
+            id,
+            request: {
+              position: before.position,
+              ...(patch.size === undefined ? {} : { size: before.size }),
+            },
+          }),
+        )
     }
     for (const drop of plan.drops) {
       const before = requestOf(drop.promptId)
@@ -104,7 +114,12 @@ export const useBoardActions = () => {
         }),
       )
     }
-    const label = plan.drops.length > 0 ? 'Add reference' : 'Move'
+    const label =
+      plan.drops.length > 0
+        ? 'Add reference'
+        : plan.prompts.some((patch) => patch.size !== undefined)
+          ? 'Resize'
+          : 'Move'
     void perform({ label, redo: sequence(redo), undo: sequence(undo.reverse()) })
   }
 
@@ -262,6 +277,7 @@ export const useBoardActions = () => {
             aspectRatio: request.aspectRatio,
             count: request.count,
             position: request.position,
+            size: request.size,
             prompt: request.prompt,
             referenceItemIds: referenceIds(request),
           },

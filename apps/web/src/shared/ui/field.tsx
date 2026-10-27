@@ -47,7 +47,12 @@ export type TextAreaProps = {
   readonly onKeyDown?: ComponentProps<'textarea'>['onKeyDown']
   readonly onBlur?: () => void
   readonly disabled?: boolean
+  /** Fills the height of its parent instead of growing with its content. */
+  readonly fill?: boolean
 }
+
+const TEXTAREA_CLASS =
+  'block w-full resize-none bg-transparent px-2.5 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 data-[disabled]:opacity-60'
 
 /** Grows with its content; past the max height it scrolls inside a Base UI ScrollArea. */
 export const TextArea = ({
@@ -60,24 +65,41 @@ export const TextArea = ({
   onKeyDown,
   onBlur,
   disabled = false,
-}: TextAreaProps) => (
-  <BaseField.Root className={cx('flex flex-col gap-1', className)} disabled={disabled}>
-    {label !== undefined && (
-      <BaseField.Label className="text-xs font-medium text-muted-foreground">
-        {label}
-      </BaseField.Label>
-    )}
-    <Box className="rounded-lg border border-border-strong bg-panel transition focus-within:border-input focus-within:ring-2 focus-within:ring-primary/40">
-      <ScrollArea className="nowheel max-h-48">
-        <BaseInput
-          value={value}
-          onValueChange={onValueChange}
-          placeholder={placeholder}
-          onBlur={onBlur}
-          render={<textarea rows={3} data-testid={testId} onKeyDown={onKeyDown} />}
-          className="block [field-sizing:content] min-h-20 w-full resize-none overflow-hidden bg-transparent px-2.5 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 data-[disabled]:opacity-60"
-        />
-      </ScrollArea>
-    </Box>
-  </BaseField.Root>
-)
+  fill = false,
+}: TextAreaProps) => {
+  const input = (
+    <BaseInput
+      value={value}
+      onValueChange={onValueChange}
+      placeholder={placeholder}
+      onBlur={onBlur}
+      render={<textarea rows={3} data-testid={testId} onKeyDown={onKeyDown} />}
+      className={cx(
+        TEXTAREA_CLASS,
+        fill
+          ? 'nowheel h-full min-h-20 overflow-auto'
+          : '[field-sizing:content] min-h-20 overflow-hidden',
+      )}
+    />
+  )
+  return (
+    <BaseField.Root
+      className={cx('flex flex-col gap-1', fill && 'min-h-0 flex-1', className)}
+      disabled={disabled}
+    >
+      {label !== undefined && (
+        <BaseField.Label className="text-xs font-medium text-muted-foreground">
+          {label}
+        </BaseField.Label>
+      )}
+      <Box
+        className={cx(
+          'rounded-lg border border-border-strong bg-panel transition focus-within:border-input focus-within:ring-2 focus-within:ring-primary/40',
+          fill && 'min-h-0 flex-1',
+        )}
+      >
+        {fill ? input : <ScrollArea className="nowheel max-h-48">{input}</ScrollArea>}
+      </Box>
+    </BaseField.Root>
+  )
+}

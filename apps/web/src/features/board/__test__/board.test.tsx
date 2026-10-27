@@ -480,12 +480,21 @@ describe('Prompt cards', () => {
     })
   })
 
-  it('creates an empty prompt from the canvas menu and undoes it', async () => {
+  it('creates empty image and video prompts from the canvas menu and undoes them', async () => {
     const api = seeded()
     const { user } = renderWithApp({ ui: <AppView />, api })
     await screen.findByTestId('media-node-itm_a')
-    await user.click(within(await openMenuOn(pane())).getByTestId('menu-new-prompt'))
+    await user.click(within(await openMenuOn(pane())).getByTestId('menu-new-video-prompt'))
+    await waitFor(() => {
+      expect(api.state.generations[0]?.kind).toBe('video')
+    })
+    await user.click(screen.getByTestId('undo'))
+    await waitFor(() => {
+      expect(api.state.generations).toHaveLength(0)
+    })
+    await user.click(within(await openMenuOn(pane())).getByTestId('menu-new-image-prompt'))
     expect(await screen.findByTestId(/^prompt-node-/)).toHaveTextContent('Drop images here')
+    expect(api.state.generations[0]?.kind).toBe('image')
     await user.click(screen.getByTestId('undo'))
     await waitFor(() => {
       expect(api.state.generations).toHaveLength(0)
@@ -496,7 +505,14 @@ describe('Prompt cards', () => {
     const api = createFakeApi({
       items: [makeItem({ id: 'itm_a' }), makeItem({ id: 'itm_r', position: { x: 900, y: 0 } })],
       generations: [
-        makeGeneration({ id: 'gen_run', status: 'pending', aspectRatio: '16:9' }),
+        makeGeneration({
+          id: 'gen_run',
+          status: 'in_progress',
+          aspectRatio: '16:9',
+          progress: 'Uploading 1 reference',
+          queuedAt: new Date(Date.now() - 65_000).toISOString(),
+          size: { width: 420, height: 520 },
+        }),
         makeGeneration({
           id: 'gen_bad',
           status: 'failed',
@@ -506,7 +522,13 @@ describe('Prompt cards', () => {
       ],
     })
     const { user, queryClient } = renderWithApp({ ui: <AppView />, api })
+    const running = await screen.findByTestId('prompt-node-gen_run')
+    expect(within(running).getByTestId('prompt-progress')).toHaveTextContent(
+      'Uploading 1 reference',
+    )
+    expect(within(running).getByTestId('prompt-elapsed')).toHaveTextContent(/^1:0\d$/)
     const failed = await screen.findByTestId('prompt-node-gen_bad')
+    expect(within(failed).queryByTestId('prompt-activity')).not.toBeInTheDocument()
     expect(within(failed).getByTestId('prompt-error')).toHaveTextContent('Out of credits')
     await user.click(within(failed).getByTestId('prompt-retry'))
     await waitFor(() => {

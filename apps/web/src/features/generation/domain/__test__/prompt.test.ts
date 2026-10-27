@@ -6,12 +6,21 @@ import {
   claudeInstruction,
   danglingTokens,
   dropReferences,
+  formatElapsed,
   insertToken,
   labelOf,
   mentionedTokens,
   modelsFor,
   removeReference,
 } from '../prompt.ts'
+
+describe('formatElapsed', () => {
+  it('formats minutes and hours', () => {
+    expect(formatElapsed(-5)).toBe('0:00')
+    expect(formatElapsed(65_400)).toBe('1:05')
+    expect(formatElapsed(3_725_000)).toBe('1:02:05')
+  })
+})
 
 describe('prompt tokens', () => {
   it('labels and adds references up to the limit', () => {

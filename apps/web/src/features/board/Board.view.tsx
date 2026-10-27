@@ -20,7 +20,6 @@ import {
   Maximize,
   Pencil,
   Redo2,
-  Sparkles,
   SquareDashed,
   Tag,
   Trash2,
@@ -70,7 +69,7 @@ export type BoardMenu = {
   readonly onSendToBack: () => void
   readonly onDetach: () => void
   readonly onDelete: () => void
-  readonly onNewPrompt: () => void
+  readonly onNewPrompt: (kind: GenerationKind) => void
   readonly onAddSection: () => void
   readonly onImportUrl: () => void
   readonly onFitView: () => void
@@ -217,10 +216,16 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
   return (
     <ContextMenuContent testId="context-menu">
       <ContextMenuItem
-        label="New prompt"
-        icon={Sparkles}
-        onSelect={menu.onNewPrompt}
-        testId="menu-new-prompt"
+        label="New image prompt"
+        icon={ImagePlus}
+        onSelect={() => menu.onNewPrompt('image')}
+        testId="menu-new-image-prompt"
+      />
+      <ContextMenuItem
+        label="New video prompt"
+        icon={Film}
+        onSelect={() => menu.onNewPrompt('video')}
+        testId="menu-new-video-prompt"
       />
       <ContextMenuItem
         label="Add section"

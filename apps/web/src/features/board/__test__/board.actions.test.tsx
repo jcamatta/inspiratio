@@ -57,7 +57,7 @@ describe('board actions', () => {
       hook.result.current.actions.persistPlan({
         items: [{ id: 'itm_a', position: { x: 10, y: 10 } }],
         sections: [{ id: 'sec_1', position: { x: 5, y: 600 }, size: { width: 700, height: 500 } }],
-        prompts: [{ id: 'gen_1', position: { x: 900, y: 40 } }],
+        prompts: [{ id: 'gen_1', position: { x: 900, y: 40 }, size: { width: 420, height: 520 } }],
         drops: [
           { promptId: 'gen_1', itemIds: ['itm_b', 'itm_a'] },
           { promptId: 'gen_gone', itemIds: ['itm_a'] },
@@ -68,6 +68,7 @@ describe('board actions', () => {
       expect(api.state.generations[0]).toMatchObject({
         prompt: 'Storm @1 @2',
         position: { x: 900, y: 40 },
+        size: { width: 420, height: 520 },
         references: [{ itemId: 'itm_a' }, { itemId: 'itm_b' }],
       })
       expect(api.state.sections[0]).toMatchObject({ position: { x: 5, y: 600 } })
@@ -82,6 +83,7 @@ describe('board actions', () => {
     expect(api.state.generations[0]).toMatchObject({
       prompt: 'Storm @1',
       position: { x: 600, y: 0 },
+      size: null,
     })
     expect(api.state.generations[0]?.references).toHaveLength(1)
     expect(api.state.sections[0]?.position).toEqual({ x: 0, y: 500 })

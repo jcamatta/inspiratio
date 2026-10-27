@@ -105,6 +105,12 @@ test('queues a prompt with references, fulfils it through the MCP and lands the 
 
     await mcp.callTool({ name: 'start_generation', arguments: { id } })
     await expect(card).toHaveAttribute('data-status', 'in_progress')
+    await mcp.callTool({
+      name: 'report_progress',
+      arguments: { id, message: 'Uploading 2 references' },
+    })
+    await expect(card.getByTestId('prompt-progress')).toHaveText('Uploading 2 references')
+    await expect(card.getByTestId('prompt-elapsed')).toHaveText(/^\d+:\d{2}$/)
 
     const output = join(await mkdtemp(join(tmpdir(), 'inspiratio-e2e-')), 'result.png')
     await writeFile(
