@@ -1,6 +1,6 @@
 import { mediaUrlOf, SYSTEM_TAGS } from '@inspiratio/shared'
 import { NodeResizer } from '@xyflow/react'
-import { Plus, Sparkles } from 'lucide-react'
+import { Plus, Bot } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { cx } from '../../../shared/lib/cx.ts'
 import {
@@ -74,7 +74,7 @@ export const MediaNodeView = (props: MediaNodeViewProps) => {
       )}
       {isGenerated && (
         <Box className="absolute top-1.5 right-1.5 rounded-md bg-accent p-1 text-accent-foreground shadow">
-          <Sparkles size={12} aria-label="AI generated" />
+          <Bot size={12} aria-label="AI generated" />
         </Box>
       )}
 

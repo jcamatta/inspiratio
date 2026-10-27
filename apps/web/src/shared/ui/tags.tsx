@@ -1,7 +1,7 @@
 import { Button as BaseButton } from '@base-ui/react/button'
 import { Combobox as BaseCombobox } from '@base-ui/react/combobox'
 import type { TagColor } from '@inspiratio/shared'
-import { Plus, Sparkles, X } from 'lucide-react'
+import { Plus, Bot, X } from 'lucide-react'
 import { parseCreateOption } from '../lib/create-option.ts'
 import { cx } from '../lib/cx.ts'
 
@@ -39,7 +39,7 @@ export const TagChip = ({
       TAG_TONE[color],
     )}
   >
-    {system && <Sparkles size={10} aria-label="system tag" />}
+    {system && <Bot size={10} aria-label="system tag" />}
     <span className="truncate">{name}</span>
     {onRemove !== undefined && (
       <BaseButton
@@ -120,7 +120,7 @@ export const ChipCombobox = ({
                     TAG_TONE[option?.color ?? 'slate'],
                   )}
                 >
-                  {option?.system === true && <Sparkles size={10} />}
+                  {option?.system === true && <Bot size={10} />}
                   {labelOf(id)}
                   <BaseCombobox.ChipRemove
                     aria-label={`Remove ${labelOf(id)}`}

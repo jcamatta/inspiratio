@@ -63,8 +63,10 @@ export const createTestDeps = (params?: {
   readonly initial?: LibraryState
   readonly fetch?: FetchFn
   readonly files?: Readonly<Record<string, Uint8Array>>
+  readonly openFails?: boolean
 }) => {
   const logs = memorySink()
+  const opened: string[] = []
   const logger = createLogger({
     service: 'test',
     sinks: [logs.sink],
@@ -85,8 +87,13 @@ export const createTestDeps = (params?: {
     maxImportBytes: 1024 * 1024,
     fetchTimeoutMs: 1000,
     webDistDir: null,
+    openFolder: (path) => {
+      if (params?.openFails === true) return Promise.reject(new Error('no file manager'))
+      opened.push(path)
+      return Promise.resolve()
+    },
   }
-  return { deps, storage, logs: logs.records }
+  return { deps, storage, opened, logs: logs.records }
 }
 
 export const createTestApp = (params?: Parameters<typeof createTestDeps>[0]) => {

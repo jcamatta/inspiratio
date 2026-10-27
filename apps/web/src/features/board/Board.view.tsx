@@ -1,3 +1,4 @@
+import { Settings } from '../settings/Settings.controller.tsx'
 import type { GenerationKind, Item } from '@inspiratio/shared'
 import {
   Background,
@@ -365,6 +366,8 @@ const BottomBar = (props: BottomBarProps) => (
     </Text>
     <IconButton icon={ZoomIn} label="Zoom in" onClick={props.onZoomIn} testId="zoom-in" />
     <IconButton icon={Maximize} label="Fit to screen" onClick={props.onFitView} testId="fit" />
+    <Separator orientation="vertical" />
+    <Settings />
     {props.selectionCount > 0 && (
       <>
         <Separator orientation="vertical" />

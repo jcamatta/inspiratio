@@ -454,3 +454,21 @@ describe('HTTP API (integration)', () => {
     expect((await request(app).post(`/api/items/${id}/restore`)).status).toBe(404)
   })
 })
+
+describe('storage folders', () => {
+  it('reports the media and trash folders and opens them', async () => {
+    const { app, opened } = createTestApp()
+    const info = await request(app).get('/api/storage').expect(200)
+    expect(info.body).toEqual({ media: '/memory/media', trash: '/memory/trash' })
+    await request(app).post('/api/storage/open').send({ folder: 'trash' }).expect(204)
+    await request(app).post('/api/storage/open').send({ folder: 'nope' }).expect(400)
+    expect(opened).toEqual(['/memory/trash'])
+  })
+
+  it('reports when the folder cannot be opened', async () => {
+    const { app, logs } = createTestApp({ openFails: true })
+    const response = await request(app).post('/api/storage/open').send({ folder: 'media' })
+    expect(response.status).toBe(502)
+    expect(logs.some((record) => record.msg === 'storage.open_failed')).toBe(true)
+  })
+})

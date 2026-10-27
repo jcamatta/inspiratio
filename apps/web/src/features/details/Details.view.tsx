@@ -1,5 +1,5 @@
 import type { Item } from '@inspiratio/shared'
-import { Copy, Sparkles } from 'lucide-react'
+import { Copy, Bot } from 'lucide-react'
 import {
   Box,
   Button,
@@ -49,7 +49,7 @@ export const DetailsView = (props: DetailsViewProps) => {
           {generation !== null && (
             <Stack gap={2}>
               <Stack direction="row" align="center" gap={2}>
-                <Sparkles size={14} className="text-accent" />
+                <Bot size={14} className="text-accent" />
                 <Text variant="label" testId="details-model">
                   {generation.provider} · {generation.model}
                 </Text>

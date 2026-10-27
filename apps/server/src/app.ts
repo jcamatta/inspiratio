@@ -12,6 +12,12 @@ import { createSectionCommands } from './features/sections/application/section.c
 import { sectionRoutes } from './features/sections/http/section.routes.ts'
 import { createTagCommands } from './features/tags/application/tag.commands.ts'
 import { tagRoutes } from './features/tags/http/tag.routes.ts'
+import {
+  createStorageCommands,
+  createStorageQueries,
+} from './features/storage/application/storage.service.ts'
+import { storageRoutes } from './features/storage/http/storage.routes.ts'
+import type { FolderOpener } from './shared/system/folder-opener.ts'
 import { createExpressApp } from './shared/http/express-adapter.ts'
 import { withRequest } from './shared/http/handlers.ts'
 import type { Route } from './shared/http/http.types.ts'
@@ -19,6 +25,7 @@ import { json } from './shared/http/responses.ts'
 
 export type AppDeps = ItemDeps & {
   readonly webDistDir: string | null
+  readonly openFolder: FolderOpener
   /** Logger used to re-emit browser records verbatim. */
   readonly clientLogSink: ItemDeps['logger']
 }
@@ -42,6 +49,10 @@ export const createRoutes = (deps: AppDeps): Route[] => {
     ...generationRoutes({
       commands: createGenerationCommands(deps),
       queries: createGenerationQueries(deps),
+    }),
+    ...storageRoutes({
+      commands: createStorageCommands(deps),
+      queries: createStorageQueries(deps),
     }),
     ...logRoutes({ sink: deps.clientLogSink }),
   ]

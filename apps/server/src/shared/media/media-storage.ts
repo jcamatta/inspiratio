@@ -6,6 +6,7 @@ import { basename, isAbsolute, join, resolve } from 'node:path'
 /** Port for the folder where reference files live on the user's disk. */
 export type MediaStorage = {
   readonly directory: string
+  readonly trashDirectory: string
   readonly save: (params: {
     readonly fileName: string
     readonly bytes: Uint8Array
@@ -25,6 +26,7 @@ export const createFsMediaStorage = async (params: {
   const absolutePathOf = (fileName: string): string => join(params.mediaDir, basename(fileName))
   return {
     directory: params.mediaDir,
+    trashDirectory: params.trashDir,
     absolutePathOf,
     save: async (file) => {
       await writeFile(absolutePathOf(file.fileName), file.bytes)
@@ -51,6 +53,7 @@ export const createMemoryMediaStorage = (): MediaStorage & {
   const trash = new Map<string, Uint8Array>()
   return {
     directory: '/memory/media',
+    trashDirectory: '/memory/trash',
     files,
     trashed,
     absolutePathOf: (fileName) => `/memory/media/${fileName}`,

@@ -15,7 +15,7 @@ import {
   LoaderCircle,
   RotateCw,
   TriangleAlert,
-  Sparkles,
+  Bot,
   X,
 } from 'lucide-react'
 import { cx } from '../../../shared/lib/cx.ts'
@@ -145,7 +145,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
       >
         <Stack direction="row" align="center" gap={2}>
           <GripHorizontal size={14} className="text-muted-foreground" />
-          <Sparkles size={14} className="text-accent" />
+          <Bot size={14} className="text-accent" />
           <Text variant="title">Prompt</Text>
         </Stack>
         <Text
@@ -242,7 +242,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
           </Box>
           <Button
             variant="primary"
-            icon={Sparkles}
+            icon={Bot}
             disabled={!props.canGenerate}
             onClick={props.onGenerate}
             className="nodrag"

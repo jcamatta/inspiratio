@@ -6,6 +6,7 @@ import { randomIds, systemClock } from './shared/lib/runtime.ts'
 import { createServiceLogger } from './shared/logging/bootstrap.ts'
 import { createFsMediaStorage, readLocalFile } from './shared/media/media-storage.ts'
 import { createFileLibraryStore } from './shared/persistence/library-store.ts'
+import { createSystemFolderOpener } from './shared/system/folder-opener.ts'
 
 const rootDir = fileURLToPath(new URL('../../../', import.meta.url))
 const config = loadConfig({ env: process.env, rootDir })
@@ -44,6 +45,7 @@ const start = async (): Promise<void> => {
     maxImportBytes: config.maxImportBytes,
     fetchTimeoutMs: config.fetchTimeoutMs,
     webDistDir: config.webDistDir,
+    openFolder: createSystemFolderOpener(process.platform),
   })
   app.listen(config.port, config.host, () => {
     logger.info({
