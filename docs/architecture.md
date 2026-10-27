@@ -21,7 +21,11 @@
   log record schema, `Result` type, placement helpers.
 - **apps/server**: Express API, also hosts the MCP server (`src/mcp`) which talks to the API over HTTP so the app
   and the agent always see the same state.
-- **apps/web**: Vite + React app.
+- **apps/web**: Vite + React app. Canvas only, with no toolbar, sidebar or drawer: every action is in the context menu
+  (`Board.view.tsx`), on a node (double-click rename, inline tags on selected images, prompt card controls) or in the
+  bottom bar (undo/redo, zoom, fit, selection count). Dialogs: `features/viewer` (zoom/pan/close) and
+  `features/details`. `features/history` holds the `HistoryProvider`: each board change records its inverse so
+  `Ctrl+Z` undoes and `Ctrl+Shift+Z` / `Ctrl+Y` redo it.
 
 ## Principles and how they are enforced
 
@@ -46,11 +50,11 @@
 - **Tag**: global, case-insensitive unique name, colour, `system` flag (`ai-generated`, `by:<provider>`, `model:<id>`).
 - **Section**: titled frame on the canvas; deleting it keeps its items in place.
 - **GenerationRequest**: prompt + labelled references (`@1`, `@2`…), kind, model, aspect ratio, count, status
-  (`pending → in_progress → completed | failed`, `failed → pending` on retry) and the `traceId` of the click that
-  created it.
+  (`draft → pending → in_progress → completed | failed`, `failed → pending` on retry), its canvas `position` and the
+  `traceId` of the click that created it. It is drawn on the canvas as a prompt card.
 
 All of it lives in `data/library.json` (written atomically) next to the media folder. Deleted files go to
-`data/trash`, never hard-deleted.
+`data/trash`, never hard-deleted, and `POST /api/items/:id/restore` brings them back (used by undo).
 
 ## Structured logging and tracing
 
@@ -69,9 +73,13 @@ grep <traceId> data/logs/inspiratio.ndjson
 
 ## Generation pipeline
 
-1. In the app: right-click references → **Create image/video…**, or drag them (grip icon) into the prompt. Each
-   reference gets a token `@n`.
-2. **Queue for Claude Code** creates a `GenerationRequest` and copies an instruction to the clipboard.
+1. In the app: right-click references → **Generate image** / **Generate video**, or right-click the canvas →
+   **New prompt**. This creates a `draft` prompt card next to the references. Dropping images onto a draft card adds
+   them as references, each with a token `@n`; tokens without a reference are flagged and block Generate.
+2. The card holds the brief, kind (image | video), model (**Auto** = `null`, Claude picks one), aspect, variants
+   (`count`) and **Generate**, which moves the request to `pending` and copies an instruction to the clipboard.
 3. In Claude Code the `inspiratio-generate` skill uses the `inspiratio` MCP to read the request (absolute file paths,
    tags, notes), the `higgsfield` MCP to upload and generate, and `complete_generation` to send result URLs back.
-4. The backend downloads the results, places them next to the references and tags them. The queue updates live.
+4. The backend downloads the results, places them next to the references and tags them. The card follows the status
+   live (`in_progress`, then `completed` with its results or `failed` with the error and a retry), and a toast reports
+   when a queued generation finishes or fails.

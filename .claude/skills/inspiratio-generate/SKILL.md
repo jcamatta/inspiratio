@@ -5,9 +5,9 @@ description: Fulfil image/video generation requests queued in the Inspiratio ref
 
 # Inspiratio → Higgsfield generation
 
-Inspiratio is the user's local reference canvas (`npm run dev`, http://localhost:5319). They compose a prompt in its
-**Generate** panel and drag reference images/videos into it. Each submission becomes a _generation request_ that you
-fulfil with two MCP servers:
+Inspiratio is the user's local reference canvas (`npm run dev`, http://localhost:5319). They write a prompt on a
+**prompt card** on the canvas, drop reference images/videos onto it and press **Generate**. The card is a _generation
+request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP servers:
 
 - `inspiratio` (this repo, `.mcp.json`): reads requests and imports results back onto the canvas.
 - `higgsfield`: uploads references and generates the media.
@@ -16,10 +16,11 @@ fulfil with two MCP servers:
 
 1. **Find the request.** If the user gave an id (`gen_…`) use it; otherwise call `inspiratio.list_generation_requests`
    (pending by default). With several pending, process them oldest first and say which ones you are doing.
+   Ignore `draft` requests: the user has not pressed Generate yet.
 2. **Read it.** `inspiratio.get_generation_request { id }` returns the prompt, `kind` (image | video), `model`
    (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`,
    `mimeType`, `title`, `tags` and `notes`. Tags and notes explain _why_ the user picked each reference — use them.
-3. **Mark it started.** `inspiratio.start_generation { id }` (the app shows "Generating…").
+3. **Mark it started.** `inspiratio.start_generation { id }` (the prompt card shows "Generating…").
 4. **Upload references to Higgsfield.**
    - `higgsfield.media_upload { files: [{ filename }] }` for all references at once (use each file's basename).
    - For every returned `upload_url`, PUT the bytes from `absolutePath`:
@@ -40,7 +41,7 @@ fulfil with two MCP servers:
    with the exact Higgsfield model id. Inspiratio downloads them, places them next to the references and tags them
    `ai-generated`, `by:higgsfield`, `model:<id>`, storing the prompt as metadata.
 9. **On any failure** (upload, credits, moderation, timeout) call `inspiratio.fail_generation { id, error }` with a short
-   human-readable reason so it shows in the app's queue, then tell the user.
+   human-readable reason so it shows on the prompt card, then tell the user.
 
 ## Notes
 
