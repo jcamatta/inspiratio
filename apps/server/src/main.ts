@@ -8,6 +8,7 @@ import { createFsMediaStorage, readLocalFile } from './shared/media/media-storag
 import { createFileLibraryStore } from './shared/persistence/library-store.ts'
 import { createSystemFolderOpener } from './shared/system/folder-opener.ts'
 import { createSharpUploadPreparer } from './shared/media/upload-copy.ts'
+import { createClaudeAgentRunner } from './shared/agent/agent-runner.ts'
 
 const rootDir = fileURLToPath(new URL('../../../', import.meta.url))
 const config = loadConfig({ env: process.env, rootDir })
@@ -34,6 +35,23 @@ const start = async (): Promise<void> => {
     mediaDir: config.mediaDir,
     trashDir: config.trashDir,
   })
+  const runAgent =
+    config.agentCommand === null
+      ? null
+      : await createClaudeAgentRunner({
+          command: config.agentCommand,
+          model: config.agentModel,
+          cwd: rootDir,
+          workDir: config.agentDir,
+          mcpServers: {
+            inspiratio: {
+              command: 'node',
+              args: ['--import', 'tsx', 'apps/server/src/mcp/main.ts'],
+              env: { INSPIRATIO_API_URL: config.apiUrl },
+            },
+            higgsfield: { type: 'http', url: config.higgsfieldMcpUrl },
+          },
+        })
   const app = createApp({
     store,
     storage,
@@ -48,6 +66,7 @@ const start = async (): Promise<void> => {
     webDistDir: config.webDistDir,
     openFolder: createSystemFolderOpener(process.platform),
     prepareUpload: await createSharpUploadPreparer({ cacheDir: config.uploadCacheDir }),
+    runAgent,
   })
   app.listen(config.port, config.host, () => {
     logger.info({

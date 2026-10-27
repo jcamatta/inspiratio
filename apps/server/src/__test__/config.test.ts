@@ -16,6 +16,13 @@ describe('loadConfig', () => {
       maxImportBytes: 300 * 1024 * 1024,
     })
     expect(config.mediaDir).toBe(join(root, 'data', 'media'))
+    expect(config).toMatchObject({
+      agentCommand: 'claude',
+      agentModel: 'sonnet',
+      agentDir: join(root, 'data', 'agent'),
+      higgsfieldMcpUrl: 'https://mcp.higgsfield.ai/mcp',
+    })
+    expect(loadConfig({ env: { INSPIRATIO_AGENT: 'off' }, rootDir: root }).agentCommand).toBeNull()
   })
 
   it('reads overrides from the environment', () => {

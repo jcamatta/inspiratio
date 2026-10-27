@@ -166,6 +166,7 @@ describe('MCP tool handlers', () => {
           title: 'Alt',
         },
       ],
+      uploads: [],
     })
   })
 

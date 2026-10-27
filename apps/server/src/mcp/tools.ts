@@ -75,6 +75,16 @@ export const toolInputs = {
       .min(1)
       .optional()
       .describe('The exact prompt you sent to the provider after rewriting the brief'),
+    uploads: z
+      .array(
+        z.object({
+          itemId: z.string(),
+          mediaId: z.string().describe('Confirmed provider media id of that reference'),
+          provider: z.string().default('higgsfield'),
+        }),
+      )
+      .optional()
+      .describe('References you uploaded in this run, so later requests reuse them'),
   }),
   failGeneration: z.object({ id: z.string(), error: z.string().min(1) }),
   searchReferences: z.object({
@@ -110,12 +120,13 @@ const fromResult = <T>(params: {
     : failure(params.result.error.message)
 
 export const HIGGSFIELD_GUIDE = [
-  'How to fulfil this request with the Higgsfield MCP:',
-  '1. Call start_generation with this id (it also resumes a request already in_progress; then read progress to see where the previous session stopped and check Higgsfield for jobs it already submitted before generating again). Call report_progress with one short line before each of the steps below so the user sees what you are doing.',
-  '2. For each resolvedReference: higgsfield media_upload {filename: basename of uploadPath}, then PUT the file at uploadPath to upload_url with curl (-H "Content-Type: <uploadMimeType>" --data-binary @<uploadPath>), then media_confirm. uploadPath is a resized copy when the original is large; never upload absolutePath.',
-  '3. Rewrite the prompt replacing each label (@1, @2…) with a description of that reference role; pass the confirmed media ids in params.medias.',
-  '4. Call higgsfield generate_image (kind=image) or generate_video (kind=video) with the requested model / aspect ratio / count (pick a model with models_explore when model is null). Wait with jobs_wait.',
-  '5. Call complete_generation with the result URLs, the exact model id used and providerPrompt set to the exact prompt you sent. On any error call fail_generation.',
+  'How to fulfil this request with the Higgsfield MCP (be quick: batch calls, no extra lookups):',
+  '1. start_generation with this id. If it was already in_progress, read progress and check higgsfield show_generations for a job already submitted before generating again. Call report_progress once per phase: "Uploading references", "Generating with <model> (job <id>)", "Importing results".',
+  '2. References: when providerMediaIds.higgsfield is set, use that media id and do not upload. Upload the rest together: one media_upload {files: [{filename: basename of uploadPath}]}, then every PUT in a single Bash command (curl -sS -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: <uploadMimeType>" --data-binary @<uploadPath> "<upload_url>" chained with &&), then one media_confirm {media_ids, type: "image"} (type "video" for videos). Never upload absolutePath.',
+  '3. Model: use the request model. When it is null use nano_banana_pro for images (media role image_references) and models_explore action recommend for videos. Only call models_explore for a model whose roles or aspect ratios you do not know.',
+  '4. Prompt: keep the user wording and replace each label (@1, @2…) with what that reference contributes, e.g. "the landscape of reference image 1". Pass media ids in params.medias in label order, with aspect_ratio when set and count.',
+  '5. generate_image (kind=image) or generate_video (kind=video); repeat jobs_wait {jobs: [{index, job_id}], timeout_seconds: 15} until terminal.',
+  '6. complete_generation with one result per output URL, the exact model id, providerPrompt set to the exact prompt you sent and uploads listing {itemId, mediaId} for every reference you uploaded in step 2. On any error call fail_generation with a short reason; if a reused media id is rejected, upload that file again once.',
 ].join('\n')
 
 /**
@@ -261,7 +272,7 @@ export const createToolHandlers = (deps: { readonly api: ApiClient; readonly log
           result: await deps.api.request({
             method: 'POST',
             path: `/api/generations/${encodeURIComponent(input.id)}/complete`,
-            body: { results, providerPrompt: input.providerPrompt },
+            body: { results, providerPrompt: input.providerPrompt, uploads: input.uploads ?? [] },
             trace: childSpan(trace),
             schema: CreatedManySchema,
           }),

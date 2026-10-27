@@ -101,9 +101,17 @@ export const GenerationResultSchema = z.object({
 export type GenerationResultInput = z.input<typeof GenerationResultSchema>
 export type GenerationResult = z.output<typeof GenerationResultSchema>
 
+export const ProviderUploadSchema = z.object({
+  itemId: IdSchema,
+  provider: z.string().trim().min(1).max(40).default('higgsfield'),
+  mediaId: z.string().trim().min(1).max(200),
+})
+export type ProviderUpload = z.output<typeof ProviderUploadSchema>
+
 export const CompleteGenerationSchema = z.object({
   results: z.array(GenerationResultSchema).min(1).max(8),
   providerPrompt: z.string().trim().min(1).max(8000).optional(),
+  uploads: z.array(ProviderUploadSchema).max(20).default([]),
 })
 export type CompleteGenerationInput = z.input<typeof CompleteGenerationSchema>
 export type CompleteGenerationCommand = z.output<typeof CompleteGenerationSchema>
@@ -128,6 +136,8 @@ export const ResolvedReferenceSchema = z.object({
   /** File to upload to the provider: the original, or a resized JPEG copy when it is large. */
   uploadPath: z.string(),
   uploadMimeType: z.string(),
+  /** Provider → media id of a previous upload of this file; reuse it instead of uploading again. */
+  providerMediaIds: z.record(z.string(), z.string()),
   mediaUrl: z.string(),
   sourceUrl: z.string().nullable(),
   tags: z.array(z.string()),

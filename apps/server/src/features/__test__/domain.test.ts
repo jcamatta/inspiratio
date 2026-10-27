@@ -309,6 +309,7 @@ describe('generation domain', () => {
         absolutePath: '/lib/itm_1.png',
         uploadPath: '/lib/itm_1.png',
         uploadMimeType: 'image/png',
+        providerMediaIds: {},
         mediaUrl: '/media/itm_1.png',
         sourceUrl: null,
         tags: ['Noir'],

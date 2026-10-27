@@ -7,6 +7,7 @@ import {
   type GenerationRequest,
   type GenerationStatus,
   type Item,
+  type ProviderUpload,
   type ResolvedReference,
   type Result,
   type Size,
@@ -161,6 +162,7 @@ export const resolveReferences = (params: {
         absolutePath: params.absolutePathOf(item.media.fileName),
         uploadPath: params.absolutePathOf(item.media.fileName),
         uploadMimeType: item.media.mimeType,
+        providerMediaIds: item.metadata.providerMedia,
         mediaUrl: mediaUrlOf(item.media),
         sourceUrl: item.metadata.sourceUrl,
         tags: tagNamesOf({ item, tags: params.tags }),
@@ -198,3 +200,23 @@ export const nextRun = (params: {
       .filter((generation) => generation?.requestId === params.requestId)
       .map((generation) => generation?.run ?? 0),
   )
+
+/** Records provider media ids on the uploaded items so later requests can reuse them. */
+export const rememberUploads = (params: {
+  readonly items: readonly Item[]
+  readonly uploads: readonly ProviderUpload[]
+}): Item[] =>
+  params.items.map((item) => {
+    const own = params.uploads.filter((upload) => upload.itemId === item.id)
+    if (own.length === 0) return item
+    const providerMedia = Object.fromEntries(
+      own.map((upload) => [upload.provider, upload.mediaId] as const),
+    )
+    return {
+      ...item,
+      metadata: {
+        ...item.metadata,
+        providerMedia: { ...item.metadata.providerMedia, ...providerMedia },
+      },
+    }
+  })

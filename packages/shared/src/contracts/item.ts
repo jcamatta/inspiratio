@@ -37,6 +37,8 @@ export const ItemMetadataSchema = z.object({
   originalFileName: z.string().nullable(),
   notes: z.string(),
   generation: GenerationInfoSchema.nullable(),
+  /** Media ids this file already has at generation providers, so it is uploaded only once. */
+  providerMedia: z.record(z.string(), z.string()).default({}),
 })
 export type ItemMetadata = z.infer<typeof ItemMetadataSchema>
 

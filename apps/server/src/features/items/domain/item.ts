@@ -109,6 +109,7 @@ export const createItem = (params: NewItem): Item => ({
     originalFileName: params.originalFileName,
     notes: '',
     generation: params.generation,
+    providerMedia: {},
   },
 })
 

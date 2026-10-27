@@ -33,6 +33,11 @@ On Windows, `scripts\launch.cmd` builds the web app, starts the server in a mini
 (close it to stop) and opens http://127.0.0.1:4319 as an Edge app window. Point a desktop shortcut at it with
 `scripts\inspiratio.ico` as its icon.
 
+Pressing **Generate** starts a headless Claude Code run (`claude -p`, Sonnet by default) limited to the Inspiratio and
+Higgsfield MCP servers; it follows the guide returned by `get_generation_request` and logs to `data/agent/<id>.log`.
+Set `INSPIRATIO_AGENT_MODEL` to pick another model, `INSPIRATIO_AGENT` to another command, or `INSPIRATIO_AGENT=off` to
+fulfil requests from your own Claude session instead.
+
 ### Generating with Claude Code
 
 1. Make sure the Higgsfield MCP is connected in Claude Code. This repo's `.mcp.json` registers the `inspiratio` MCP server.

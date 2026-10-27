@@ -25,6 +25,7 @@ export const makeItem = (overrides: Partial<Item> & { readonly id: string }): It
     originalFileName: null,
     notes: '',
     generation: null,
+    providerMedia: {},
   },
   ...overrides,
 })

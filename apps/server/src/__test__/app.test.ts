@@ -6,7 +6,7 @@ import {
   type GenerationRequest,
 } from '@inspiratio/shared'
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createTestApp, fakeFetch, MP4, PNG } from './harness.ts'
 
 const upload = async (params: {
@@ -497,5 +497,91 @@ describe('generation runs', () => {
       'Heavy rain at night',
       null,
     ])
+  })
+})
+
+describe('automatic agent', () => {
+  const queue = async (app: ReturnType<typeof createTestApp>['app']) =>
+    (
+      (await request(app).post('/api/generations').send({ prompt: 'Rain', submit: true })).body as {
+        id: string
+      }
+    ).id
+
+  const statusOf = async (params: {
+    readonly app: ReturnType<typeof createTestApp>['app']
+    readonly id: string
+  }) =>
+    ((await request(params.app).get(`/api/generations/${params.id}`)).body as { status: string })
+      .status
+
+  it('starts the agent for queued requests and fails what it leaves open', async () => {
+    const { app, agentRuns } = createTestApp({
+      agent: () => Promise.resolve({ exitCode: 1, logFile: 'data/agent/x.log' }),
+    })
+    const id = await queue(app)
+    await vi.waitFor(async () => {
+      expect(await statusOf({ app, id })).toBe('failed')
+    })
+    const details = (await request(app).get(`/api/generations/${id}`)).body as { error: string }
+    expect(details.error).toContain('data/agent/x.log')
+    await request(app).post(`/api/generations/${id}/retry`).expect(204)
+    expect(agentRuns).toEqual([id, id])
+  })
+
+  it('leaves finished requests alone and runs one agent per request at a time', async () => {
+    const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/out.png': { body: PNG } })
+    const finish: { run: () => void } = { run: () => undefined }
+    const { app, agentRuns } = createTestApp({
+      fetch: fetchFn,
+      agent: () =>
+        new Promise((resolve) => {
+          finish.run = () => resolve({ exitCode: 0, logFile: '' })
+        }),
+    })
+    const id = await queue(app)
+    await request(app).post(`/api/generations/${id}/start`).expect(204)
+    await request(app)
+      .post(`/api/generations/${id}/progress`)
+      .send({ message: 'Uploading references' })
+      .expect(204)
+    expect(agentRuns).toEqual([id])
+    await request(app)
+      .post(`/api/generations/${id}/complete`)
+      .send({ results: [{ source: { url: 'https://cdn.higgsfield.ai/out.png' }, model: 'm' }] })
+      .expect(201)
+    finish.run()
+    await vi.waitFor(async () => {
+      expect(await statusOf({ app, id })).toBe('completed')
+    })
+  })
+})
+
+describe('provider uploads', () => {
+  it('remembers uploaded media ids so later requests reuse them', async () => {
+    const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/out.png': { body: PNG } })
+    const { app } = createTestApp({ fetch: fetchFn })
+    const itemId = (await upload({ app })).ids[0] ?? ''
+    const create = async () =>
+      (
+        (
+          await request(app)
+            .post('/api/generations')
+            .send({ prompt: 'Rain @1', referenceItemIds: [itemId], submit: true })
+        ).body as { id: string }
+      ).id
+    const first = await create()
+    await request(app)
+      .post(`/api/generations/${first}/complete`)
+      .send({
+        results: [{ source: { url: 'https://cdn.higgsfield.ai/out.png' }, model: 'm' }],
+        uploads: [{ itemId, mediaId: 'hf-media-1' }],
+      })
+      .expect(201)
+    const second = await create()
+    const details = (await request(app).get(`/api/generations/${second}`)).body as {
+      resolvedReferences: { providerMediaIds: Record<string, string> }[]
+    }
+    expect(details.resolvedReferences[0]?.providerMediaIds).toEqual({ higgsfield: 'hf-media-1' })
   })
 })

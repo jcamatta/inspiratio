@@ -1,5 +1,6 @@
 import { err, ok, type LibraryState, type Result } from '@inspiratio/shared'
 import { createApp, type AppDeps } from '../app.ts'
+import type { AgentOutcome } from '../shared/agent/agent-runner.ts'
 import { createLogger, memorySink } from '../shared/logging/logger.ts'
 import { fixedClock, sequentialIds } from '../shared/lib/runtime.ts'
 import { createMemoryMediaStorage } from '../shared/media/media-storage.ts'
@@ -65,9 +66,11 @@ export const createTestDeps = (params?: {
   readonly fetch?: FetchFn
   readonly files?: Readonly<Record<string, Uint8Array>>
   readonly openFails?: boolean
+  readonly agent?: (generationId: string) => Promise<AgentOutcome>
 }) => {
   const logs = memorySink()
   const opened: string[] = []
+  const agentRuns: string[] = []
   const logger = createLogger({
     service: 'test',
     sinks: [logs.sink],
@@ -89,13 +92,20 @@ export const createTestDeps = (params?: {
     fetchTimeoutMs: 1000,
     webDistDir: null,
     prepareUpload: keepOriginalUpload,
+    runAgent:
+      params?.agent === undefined
+        ? null
+        : ({ generationId }) => {
+            agentRuns.push(generationId)
+            return params.agent?.(generationId) ?? Promise.resolve({ exitCode: 0, logFile: '' })
+          },
     openFolder: (path) => {
       if (params?.openFails === true) return Promise.reject(new Error('no file manager'))
       opened.push(path)
       return Promise.resolve()
     },
   }
-  return { deps, storage, opened, logs: logs.records }
+  return { deps, storage, opened, agentRuns, logs: logs.records }
 }
 
 export const createTestApp = (params?: Parameters<typeof createTestDeps>[0]) => {

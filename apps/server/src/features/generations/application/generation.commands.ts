@@ -10,6 +10,7 @@ import {
   type Result,
   type UpdateGenerationInput,
 } from '@inspiratio/shared'
+import type { AgentRunner } from '../../../shared/agent/agent-runner.ts'
 import { findById, removeById, upsert } from '../../../shared/lib/collections.ts'
 import { fetchRemoteMedia } from '../../../shared/media/remote-media.ts'
 import type { ItemDeps } from '../../items/application/item.deps.ts'
@@ -25,13 +26,41 @@ import {
   CARD_SIZE,
   createGenerationRequest,
   nextRun,
+  rememberUploads,
   reportProgress,
   resultPosition,
   transition,
   updateDraft,
 } from '../domain/generation.ts'
 
-export const createGenerationCommands = (deps: ItemDeps) => {
+export type GenerationDeps = ItemDeps & { readonly runAgent: AgentRunner | null }
+
+export const createGenerationCommands = (deps: GenerationDeps) => {
+  const running = new Set<string>()
+
+  const isOpen = (id: string): boolean => {
+    const status = findById({ list: deps.store.read().generations, id })?.status
+    return status === 'pending' || status === 'in_progress'
+  }
+
+  /** Hands a queued request to the agent; a run that exits with the request still open fails it. */
+  const dispatch = (id: string): void => {
+    const runAgent = deps.runAgent
+    if (runAgent === null || running.has(id)) return
+    running.add(id)
+    deps.logger.info({ msg: 'agent.started', generationId: id })
+    void runAgent({ generationId: id }).then(async (outcome) => {
+      running.delete(id)
+      deps.logger.info({ msg: 'agent.finished', generationId: id, exitCode: outcome.exitCode })
+      if (isOpen(id))
+        await move({
+          id,
+          to: 'failed',
+          error: `Claude stopped without finishing. Log: ${outcome.logFile}`,
+        })
+    })
+  }
+
   const missingItem = (itemIds: readonly string[]): string | undefined => {
     const items = deps.store.read().items
     return itemIds.find((id) => findById({ list: items, id }) === undefined)
@@ -72,6 +101,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
       input: params.input,
     })
     await save(request)
+    if (request.status === 'pending') dispatch(request.id)
     deps.logger.info({
       msg: request.status === 'draft' ? 'generation.drafted' : 'generation.requested',
       generationId: request.id,
@@ -115,6 +145,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
       generationId: params.id,
       status: params.to,
     })
+    if (params.to === 'pending') dispatch(params.id)
     return ok(entity)
   }
 
@@ -157,6 +188,12 @@ export const createGenerationCommands = (deps: ItemDeps) => {
         code: 'invalid_state',
         message: `Generation ${request.id} is ${request.status}`,
       })
+
+    if (params.input.uploads.length > 0)
+      await deps.store.update((current) => ({
+        ...current,
+        items: rememberUploads({ items: current.items, uploads: params.input.uploads }),
+      }))
 
     const anchors = [{ position: request.position, size: CARD_SIZE }]
     const run = nextRun({ items: state.items, requestId: request.id })

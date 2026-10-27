@@ -36,6 +36,7 @@ export default defineConfig({
         INSPIRATIO_DATA_DIR: E2E_DATA_DIR,
         INSPIRATIO_PORT: String(E2E_API_PORT),
         INSPIRATIO_LOG_FORMAT: 'json',
+        INSPIRATIO_AGENT: 'off',
       },
     },
     {

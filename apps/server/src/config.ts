@@ -17,6 +17,11 @@ export type Config = {
   readonly maxImportBytes: number
   readonly fetchTimeoutMs: number
   readonly apiUrl: string
+  /** Agent command started for each queued generation, or null when INSPIRATIO_AGENT is off. */
+  readonly agentCommand: string | null
+  readonly agentModel: string
+  readonly agentDir: string
+  readonly higgsfieldMcpUrl: string
 }
 
 export type Env = Readonly<Record<string, string | undefined>>
@@ -53,5 +58,9 @@ export const loadConfig = (params: { readonly env: Env; readonly rootDir: string
     maxImportBytes: numberOr({ value: env.INSPIRATIO_MAX_IMPORT_MB, fallback: 300 }) * MB,
     fetchTimeoutMs: numberOr({ value: env.INSPIRATIO_FETCH_TIMEOUT_MS, fallback: 60_000 }),
     apiUrl: env.INSPIRATIO_API_URL ?? `http://${host}:${port}`,
+    agentCommand: env.INSPIRATIO_AGENT === 'off' ? null : (env.INSPIRATIO_AGENT ?? 'claude'),
+    agentModel: env.INSPIRATIO_AGENT_MODEL ?? 'sonnet',
+    agentDir: join(dataDir, 'agent'),
+    higgsfieldMcpUrl: env.INSPIRATIO_HIGGSFIELD_MCP_URL ?? 'https://mcp.higgsfield.ai/mcp',
   }
 }
