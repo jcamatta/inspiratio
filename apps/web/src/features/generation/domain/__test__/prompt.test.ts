@@ -8,11 +8,24 @@ import {
   dropReferences,
   formatElapsed,
   insertToken,
+  isStalled,
+  STALLED_AFTER_MS,
   labelOf,
   mentionedTokens,
   modelsFor,
   removeReference,
 } from '../prompt.ts'
+
+describe('isStalled', () => {
+  it('flags in-progress requests without recent updates', () => {
+    const updatedAt = '2026-10-27T10:00:00.000Z'
+    const now = Date.parse(updatedAt) + STALLED_AFTER_MS + 1
+    const running = makeGeneration({ id: 'gen_1', status: 'in_progress', updatedAt })
+    expect(isStalled({ request: running, now })).toBe(true)
+    expect(isStalled({ request: running, now: now - 2 })).toBe(false)
+    expect(isStalled({ request: { ...running, status: 'pending' }, now })).toBe(false)
+  })
+})
 
 describe('formatElapsed', () => {
   it('formats minutes and hours', () => {

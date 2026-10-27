@@ -7,6 +7,7 @@ import {
   claudeInstruction,
   danglingTokens,
   formatElapsed,
+  isStalled,
   modelsFor,
 } from '../../generation/domain/prompt.ts'
 import { isActive, useGenerationCommands } from '../../generation/generation.hooks.ts'
@@ -89,6 +90,10 @@ const PromptCard = ({
       models={modelsFor(request.kind)}
       model={request.model ?? AUTO_MODEL}
       dangling={dangling}
+      stalled={isStalled({ request, now })}
+      onCancel={() => {
+        void generations.cancel({ id: request.id })
+      }}
       elapsed={
         active ? formatElapsed(now - Date.parse(request.queuedAt ?? request.updatedAt)) : null
       }

@@ -7,6 +7,7 @@ import {
   makeItem,
   makeSection,
   makeTag,
+  NOW,
 } from '../../../__test__/fake-api.ts'
 import { renderWithApp } from '../../../__test__/render.tsx'
 
@@ -547,6 +548,42 @@ describe('Prompt cards', () => {
     expect(await screen.findByText('Generation finished')).toBeInTheDocument()
     const done = await screen.findByTestId('prompt-node-gen_run')
     await user.click(within(done).getByLabelText('Show results'))
+  })
+
+  it('cancels a queued prompt and requeues a stalled one', async () => {
+    const api = createFakeApi({
+      generations: [
+        makeGeneration({ id: 'gen_wait', status: 'pending', queuedAt: NOW }),
+        makeGeneration({
+          id: 'gen_stuck',
+          status: 'in_progress',
+          progress: 'Waiting on job j_1',
+          updatedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+          position: { x: 0, y: 900 },
+        }),
+      ],
+    })
+    const { user } = renderWithApp({ ui: <AppView />, api })
+    const waiting = await screen.findByTestId('prompt-node-gen_wait')
+    expect(waiting).toHaveAttribute('data-stalled', 'false')
+    expect(within(waiting).queryByTestId('prompt-requeue')).not.toBeInTheDocument()
+    await user.click(within(waiting).getByTestId('prompt-cancel'))
+    await waitFor(() => {
+      expect(api.state.generations.find((request) => request.id === 'gen_wait')).toMatchObject({
+        status: 'failed',
+        error: 'Cancelled',
+      })
+    })
+    expect(screen.queryByText('Generation failed')).not.toBeInTheDocument()
+
+    const stuck = await screen.findByTestId('prompt-node-gen_stuck')
+    expect(stuck).toHaveAttribute('data-stalled', 'true')
+    await user.click(within(stuck).getByTestId('prompt-requeue'))
+    await waitFor(() => {
+      expect(api.state.generations.find((request) => request.id === 'gen_stuck')?.status).toBe(
+        'pending',
+      )
+    })
   })
 
   it('reports failed submissions without queuing', async () => {

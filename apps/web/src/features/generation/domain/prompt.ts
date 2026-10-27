@@ -1,4 +1,4 @@
-import { MAX_REFERENCES, type GenerationKind } from '@inspiratio/shared'
+import { MAX_REFERENCES, type GenerationKind, type GenerationRequest } from '@inspiratio/shared'
 
 export const labelOf = (index: number): string => `@${index + 1}`
 
@@ -116,6 +116,16 @@ export const ASPECT_RATIOS = [
   '2:3',
   '3:2',
 ] as const
+
+export const STALLED_AFTER_MS = 10 * 60 * 1000
+
+/** An in-progress request with no update for a while: the agent session probably ended. */
+export const isStalled = (params: {
+  readonly request: GenerationRequest
+  readonly now: number
+}): boolean =>
+  params.request.status === 'in_progress' &&
+  params.now - Date.parse(params.request.updatedAt) > STALLED_AFTER_MS
 
 export const claudeInstruction = (generationId: string): string =>
   `Use the inspiratio-generate skill to fulfil Inspiratio generation request ${generationId}.`

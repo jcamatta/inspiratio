@@ -12,6 +12,8 @@ type Traced = { readonly trace?: TraceContext }
 
 const NoContent = z.undefined()
 
+export const CANCELLED = 'Cancelled'
+
 export const generationApi = {
   list: () =>
     http.request({
@@ -50,6 +52,15 @@ export const generationApi = {
     http.request({
       method: 'POST',
       path: `/api/generations/${params.id}/retry`,
+      schema: NoContent,
+      trace: params.trace,
+    }),
+
+  cancel: (params: Traced & { readonly id: string }) =>
+    http.request({
+      method: 'POST',
+      path: `/api/generations/${params.id}/fail`,
+      body: { error: CANCELLED },
       schema: NoContent,
       trace: params.trace,
     }),

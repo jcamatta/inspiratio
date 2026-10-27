@@ -11,8 +11,10 @@ import {
   Film,
   GripHorizontal,
   Image,
+  CircleStop,
   LoaderCircle,
   RotateCw,
+  TriangleAlert,
   Sparkles,
   X,
 } from 'lucide-react'
@@ -43,6 +45,8 @@ export type PromptNodeViewProps = {
   readonly model: string
   readonly dangling: readonly string[]
   readonly elapsed: string | null
+  readonly stalled: boolean
+  readonly onCancel: () => void
   readonly canGenerate: boolean
   readonly onSettingsChange: (settings: PromptSettings) => void
   readonly onRemoveReference: (itemId: string) => void
@@ -125,6 +129,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
     <Panel
       testId={`prompt-node-${request.id}`}
       data-status={request.status}
+      data-stalled={props.stalled}
       className={cx(
         'flex size-full flex-col gap-3 p-3 transition-shadow',
         props.selected && 'outline-3 outline-offset-3 outline-mint-700',
@@ -257,7 +262,11 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
           </Text>
           {props.elapsed !== null && (
             <Stack direction="row" align="center" gap={2} testId="prompt-activity">
-              <LoaderCircle size={14} className="shrink-0 animate-spin text-primary" />
+              {props.stalled ? (
+                <TriangleAlert size={14} className="shrink-0 text-danger" />
+              ) : (
+                <LoaderCircle size={14} className="shrink-0 animate-spin text-primary" />
+              )}
               <Text variant="caption" className="min-w-0 flex-1 truncate" testId="prompt-progress">
                 {request.progress ?? status.label}
               </Text>
@@ -288,13 +297,23 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
           )}
           <Stack direction="row" gap={2} className="nodrag">
             {(request.status === 'pending' || request.status === 'in_progress') && (
-              <Button
-                size="sm"
-                icon={ClipboardCopy}
-                onClick={props.onCopyInstruction}
-                testId="prompt-copy"
-              >
-                Copy instruction
+              <>
+                <Button
+                  size="sm"
+                  icon={ClipboardCopy}
+                  onClick={props.onCopyInstruction}
+                  testId="prompt-copy"
+                >
+                  Copy instruction
+                </Button>
+                <Button size="sm" icon={CircleStop} onClick={props.onCancel} testId="prompt-cancel">
+                  Cancel
+                </Button>
+              </>
+            )}
+            {props.stalled && (
+              <Button size="sm" icon={RotateCw} onClick={props.onRetry} testId="prompt-requeue">
+                Requeue
               </Button>
             )}
             {request.status === 'failed' && (

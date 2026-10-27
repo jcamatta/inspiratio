@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useCommand } from '../../shared/api/use-command.ts'
 import { notify } from '../../shared/ui/index.ts'
 import { BOARD_QUERY_KEY } from '../board/api/board.api.ts'
-import { GENERATIONS_QUERY_KEY, generationApi } from './api/generation.api.ts'
+import { CANCELLED, GENERATIONS_QUERY_KEY, generationApi } from './api/generation.api.ts'
 
 export const isActive = (request: GenerationRequest): boolean =>
   request.status === 'pending' || request.status === 'in_progress'
@@ -35,7 +35,7 @@ export const announce = (change: StatusChange): void => {
       description: `${request.resultItemIds.length} result(s) added next to the prompt`,
       tone: 'success',
     })
-  if (request.status === 'failed')
+  if (request.status === 'failed' && request.error !== CANCELLED)
     notify({ title: 'Generation failed', description: request.error ?? undefined, tone: 'error' })
   if (request.status === 'in_progress') notify({ title: 'Claude started generating' })
 }
@@ -100,6 +100,12 @@ export const useGenerationCommands = () => ({
     call: generationApi.retry,
     invalidate: GENERATIONS,
     errorTitle: 'Could not retry',
+  }),
+  cancel: useCommand({
+    name: 'generation.cancel',
+    call: generationApi.cancel,
+    invalidate: GENERATIONS,
+    errorTitle: 'Could not cancel',
   }),
   remove: useCommand({
     name: 'generation.remove',

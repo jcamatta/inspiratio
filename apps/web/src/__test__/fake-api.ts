@@ -342,8 +342,14 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
       }
       if (method === 'POST' && action === 'retry') {
         state.generations = state.generations.map((request) =>
-          request.id === id ? { ...request, status: 'pending', error: null } : request,
+          request.id === id
+            ? { ...request, status: 'pending', error: null, progress: null, queuedAt: NOW }
+            : request,
         )
+        return noContent()
+      }
+      if (method === 'POST' && action === 'fail' && found !== undefined) {
+        replace({ ...found, status: 'failed', error: String(body.error), progress: null })
         return noContent()
       }
       if (method === 'DELETE') {
