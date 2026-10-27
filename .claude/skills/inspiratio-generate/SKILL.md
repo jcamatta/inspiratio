@@ -15,16 +15,21 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
 ## Workflow
 
 1. **Find the request.** If the user gave an id (`gen_…`) use it; otherwise call `inspiratio.list_generation_requests`
-   (pending by default). With several pending, process them oldest first and say which ones you are doing.
-   Ignore `draft` requests: the user has not pressed Generate yet.
+   (open requests by default: `pending` and `in_progress`). With several, process them oldest first and say which ones
+   you are doing. Ignore `draft` requests: the user has not pressed Generate yet.
 2. **Read it.** `inspiratio.get_generation_request { id }` returns the prompt, `kind` (image | video), `model`
    (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`,
    `mimeType`, `title`, `tags` and `notes`. Tags and notes explain _why_ the user picked each reference — use them.
 3. **Mark it started.** `inspiratio.start_generation { id }` (the prompt card shows "Generating…").
+   **Resuming:** if the request is already `in_progress`, a previous session stopped midway (for example it ran out of
+   usage). `start_generation` still succeeds. Read its `progress` line, then check `higgsfield.show_generations` for jobs
+   already submitted for this prompt. If a job finished, skip to step 8 with its URLs; if one is still running, wait
+   for it; generate again only when nothing was submitted, so the user is not charged twice.
    From here on, call `inspiratio.report_progress { id, message }` before every step below and while waiting on long
    jobs (roughly every minute), with one short line such as "Uploading 2 references", "Picking a model",
-   "Generating 2 images with nano_banana_pro" or "Still rendering, 3 of 4 done". The card shows the latest line next
-   to a spinner and an elapsed timer.
+   "Generating 2 images with nano_banana_pro" or "Still rendering, 3 of 4 done". While waiting on Higgsfield, include
+   the job ids (e.g. "Waiting on job 7f3a…") so a later session can resume. The card shows the latest line next to a
+   spinner and an elapsed timer; after 10 minutes without a report it is flagged as stalled.
 4. **Upload references to Higgsfield.**
    - `higgsfield.media_upload { files: [{ filename }] }` for all references at once (use each file's basename).
    - For every returned `upload_url`, PUT the bytes from `absolutePath`:

@@ -41,7 +41,10 @@ Open http://localhost:5319. The API runs on http://127.0.0.1:4319. Your library 
 
 A prompt card moves through `draft → pending → in_progress → completed | failed`; a failed card can be retried. While
 it is queued or generating, the card shows a spinner, the elapsed time and the latest status line Claude reported
-(`report_progress`). Select a prompt card and drag its handles to resize it; the brief grows with it.
+(`report_progress`). **Cancel** stops a queued or running card. If a running card gets no report for 10 minutes
+(for example the Claude session ran out of usage) it is flagged as stalled and offers **Requeue**; a new Claude
+session can also pick it up directly, since `list_generation_requests` returns unfinished requests and
+`start_generation` resumes them. Select a prompt card and drag its handles to resize it; the brief grows with it.
 
 ### Canvas controls
 

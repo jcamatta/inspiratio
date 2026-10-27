@@ -50,7 +50,7 @@
 - **Tag**: global, case-insensitive unique name, colour, `system` flag (`ai-generated`, `by:<provider>`, `model:<id>`).
 - **Section**: titled frame on the canvas; deleting it keeps its items in place.
 - **GenerationRequest**: prompt + labelled references (`@1`, `@2`…), kind, model, aspect ratio, count, status
-  (`draft → pending → in_progress → completed | failed`, `failed → pending` on retry), its canvas `position` and optional `size`, the latest `progress` line, `queuedAt` and the
+  (`draft → pending → in_progress → completed | failed`, `failed → pending` on retry, `in_progress → pending` on requeue), its canvas `position` and optional `size`, the latest `progress` line, `queuedAt` and the
   `traceId` of the click that created it. It is drawn on the canvas as a prompt card.
 
 All of it lives in `data/library.json` (written atomically) next to the media folder. Deleted files go to
@@ -81,7 +81,9 @@ grep <traceId> data/logs/inspiratio.ndjson
 3. In Claude Code the `inspiratio-generate` skill uses the `inspiratio` MCP to read the request (absolute file paths,
    tags, notes), the `higgsfield` MCP to upload and generate, `report_progress` to post a status line on the card
    before each step (stored as `progress`; a pending request becomes `in_progress`), and `complete_generation` to send
-   result URLs back. The card shows a spinner, the latest `progress` line and the time elapsed since `queuedAt`.
+   result URLs back. `start_generation` on an `in_progress` request resumes it, and the default listing includes
+   `in_progress` requests, so a new session can finish what an interrupted one started. The card shows a spinner, the latest `progress` line and the time elapsed since `queuedAt`.
 4. The backend downloads the results, places them next to the references and tags them. The card follows the status
    live (`in_progress`, then `completed` with its results or `failed` with the error and a retry), and a toast reports
-   when a queued generation finishes or fails.
+   when a queued generation finishes or fails. **Cancel** fails the request with `Cancelled` (no toast); an
+   `in_progress` card with no update for 10 minutes is shown as stalled with **Requeue** (`in_progress → pending`).
