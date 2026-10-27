@@ -11,6 +11,7 @@ import {
   type Result,
   type Size,
   type Tag,
+  type UpdateGenerationInput,
   type Vec2,
 } from '@inspiratio/shared'
 import { findById, unique } from '../../../shared/lib/collections.ts'
@@ -24,6 +25,7 @@ export const createGenerationRequest = (params: {
   readonly id: string
   readonly now: string
   readonly traceId: string
+  readonly position: Vec2
   readonly input: CreateGenerationCommand
 }): GenerationRequest => ({
   id: params.id,
@@ -33,15 +35,55 @@ export const createGenerationRequest = (params: {
   aspectRatio: params.input.aspectRatio,
   count: params.input.count,
   references: labelReferences(params.input.referenceItemIds),
-  status: 'pending',
+  status: params.input.submit ? 'pending' : 'draft',
   traceId: params.traceId,
   createdAt: params.now,
   updatedAt: params.now,
   resultItemIds: [],
   error: null,
+  position: params.position,
 })
 
+export const CARD_SIZE = { width: 340, height: 420 } as const
+
+export const updateDraft = (params: {
+  readonly request: GenerationRequest
+  readonly patch: UpdateGenerationInput
+  readonly now: string
+}): Result<GenerationRequest> => {
+  const { position, referenceItemIds, ...content } = params.patch
+  const editsContent = [
+    content.prompt,
+    content.kind,
+    content.model,
+    content.aspectRatio,
+    content.count,
+    referenceItemIds,
+  ].some((value) => value !== undefined)
+  if (editsContent && params.request.status !== 'draft')
+    return err({
+      code: 'invalid_state',
+      message: `Generation ${params.request.id} is no longer a draft`,
+    })
+  return ok({
+    ...params.request,
+    prompt: content.prompt ?? params.request.prompt,
+    kind: content.kind ?? params.request.kind,
+    model: content.model === undefined ? params.request.model : content.model,
+    aspectRatio:
+      content.aspectRatio === undefined ? params.request.aspectRatio : content.aspectRatio,
+    count: content.count ?? params.request.count,
+    references:
+      referenceItemIds === undefined
+        ? params.request.references
+        : labelReferences(referenceItemIds),
+    position: position ?? params.request.position,
+    updatedAt: params.now,
+  })
+}
+
 const TRANSITIONS: Readonly<Record<GenerationStatus, readonly GenerationStatus[]>> = {
+  draft: ['pending'],
   pending: ['in_progress', 'completed', 'failed'],
   in_progress: ['completed', 'failed'],
   completed: [],

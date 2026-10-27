@@ -14,6 +14,7 @@ export type BoardSnapshot = z.infer<typeof BoardSnapshotSchema>
 export const LibraryStateSchema = BoardSnapshotSchema.extend({
   version: z.literal(1),
   generations: z.array(GenerationRequestSchema),
+  trash: z.array(ItemSchema).default([]),
 })
 export type LibraryState = z.infer<typeof LibraryStateSchema>
 
@@ -23,6 +24,7 @@ export const emptyLibraryState = (): LibraryState => ({
   tags: [],
   sections: [],
   generations: [],
+  trash: [],
 })
 
 export const CreatedSchema = z.object({ id: z.string() })

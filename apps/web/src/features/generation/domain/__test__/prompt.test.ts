@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { makeGeneration } from '../../../../__test__/fake-api.ts'
-import { finishedIds, isActive, pollInterval } from '../../generation.hooks.ts'
+import { announce, isActive, pollInterval, statusChanges } from '../../generation.hooks.ts'
 import {
   addReferences,
   claudeInstruction,
@@ -75,8 +75,35 @@ describe('generation polling', () => {
     expect(isActive(makeGeneration({ id: 'a', status: 'in_progress' }))).toBe(true)
     expect(pollInterval([makeGeneration({ id: 'a' })])).toBe(2500)
     expect(pollInterval([makeGeneration({ id: 'a', status: 'failed' })])).toBe(15000)
-    expect(
-      finishedIds([makeGeneration({ id: 'a', status: 'completed' }), makeGeneration({ id: 'b' })]),
-    ).toBe('a')
+  })
+
+  it('detects status changes between polls and announces them', () => {
+    const previous = new Map([
+      ['a', 'pending' as const],
+      ['b', 'in_progress' as const],
+      ['c', 'draft' as const],
+    ])
+    const changes = statusChanges({
+      previous,
+      next: [
+        makeGeneration({ id: 'a', status: 'in_progress' }),
+        makeGeneration({ id: 'b', status: 'completed', resultItemIds: ['r'] }),
+        makeGeneration({ id: 'c', status: 'draft' }),
+        makeGeneration({ id: 'new', status: 'failed' }),
+      ],
+    })
+    expect(changes.map((change) => [change.request.id, change.from])).toEqual([
+      ['a', 'pending'],
+      ['b', 'in_progress'],
+    ])
+    for (const change of changes) announce(change)
+    announce({
+      request: makeGeneration({ id: 'f', status: 'failed', error: null }),
+      from: 'pending',
+    })
+    announce({
+      request: makeGeneration({ id: 'g', status: 'failed', error: 'credits' }),
+      from: 'pending',
+    })
   })
 })

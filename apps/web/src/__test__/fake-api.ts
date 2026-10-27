@@ -63,6 +63,7 @@ export const makeGeneration = (
   updatedAt: NOW,
   resultItemIds: [],
   error: null,
+  position: { x: 600, y: 0 },
   ...overrides,
 })
 
@@ -78,6 +79,7 @@ type State = {
   tags: Tag[]
   sections: Section[]
   generations: GenerationRequest[]
+  trash: Item[]
 }
 
 const json = (params: { readonly body: unknown; readonly status?: number }): Response =>
@@ -108,6 +110,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
     tags: [...(seed.tags ?? [])],
     sections: [...(seed.sections ?? [])],
     generations: [...(seed.generations ?? [])],
+    trash: [],
   }
   const requests: RecordedRequest[] = []
   const failures = new Map<string, { status: number; message: string }>()
@@ -178,6 +181,14 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         })
         return noContent()
       }
+      if (method === 'POST' && action === 'restore') {
+        const trashed = state.trash.find((candidate) => candidate.id === id)
+        if (trashed === undefined)
+          return apiError({ status: 404, code: 'not_found', message: 'gone' })
+        state.trash = state.trash.filter((candidate) => candidate.id !== id)
+        state.items.push(trashed)
+        return noContent()
+      }
       const item = state.items.find((candidate) => candidate.id === id)
       if (item === undefined)
         return apiError({ status: 404, code: 'not_found', message: `Item ${id ?? ''} not found` })
@@ -214,6 +225,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
       }
       if (method === 'DELETE') {
         state.items = state.items.filter((candidate) => candidate.id !== item.id)
+        state.trash.push(item)
         return noContent()
       }
     }
@@ -268,9 +280,14 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         const referenceItemIds = (body.referenceItemIds as string[] | undefined) ?? []
         const created = makeGeneration({
           id: nextId('gen'),
-          prompt: String(body.prompt),
+          prompt: typeof body.prompt === 'string' ? body.prompt : '',
           kind: body.kind === 'video' ? 'video' : 'image',
           model: typeof body.model === 'string' ? body.model : null,
+          status: body.submit === false ? 'draft' : 'pending',
+          position: (body.position as GenerationRequest['position'] | undefined) ?? {
+            x: 600,
+            y: 0,
+          },
           references: [...referenceItemIds.entries()].map(([index, itemId]) => ({
             itemId,
             label: `@${String(index + 1)}`,
@@ -278,6 +295,45 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         })
         state.generations.unshift(created)
         return json({ body: { id: created.id }, status: 201 })
+      }
+      const found = state.generations.find((request) => request.id === id)
+      const replace = (next: GenerationRequest) => {
+        state.generations = state.generations.map((request) =>
+          request.id === next.id ? next : request,
+        )
+      }
+      if (method === 'PATCH' && found !== undefined) {
+        const ids = body.referenceItemIds as string[] | undefined
+        replace({
+          ...found,
+          ...(typeof body.prompt === 'string' ? { prompt: body.prompt } : {}),
+          ...(body.kind === 'image' || body.kind === 'video' ? { kind: body.kind } : {}),
+          ...('model' in body ? { model: body.model as string | null } : {}),
+          ...('aspectRatio' in body ? { aspectRatio: body.aspectRatio as string | null } : {}),
+          ...(typeof body.count === 'number' ? { count: body.count } : {}),
+          ...(body.position === undefined
+            ? {}
+            : { position: body.position as GenerationRequest['position'] }),
+          ...(ids === undefined
+            ? {}
+            : {
+                references: [...ids.entries()].map(([index, itemId]) => ({
+                  itemId,
+                  label: `@${String(index + 1)}`,
+                })),
+              }),
+        })
+        return noContent()
+      }
+      if (method === 'POST' && action === 'submit' && found !== undefined) {
+        if (found.prompt.trim() === '')
+          return apiError({
+            status: 400,
+            code: 'validation',
+            message: 'Write a prompt before generating',
+          })
+        replace({ ...found, status: 'pending' })
+        return json({ body: { id: found.id } })
       }
       if (method === 'POST' && action === 'retry') {
         state.generations = state.generations.map((request) =>

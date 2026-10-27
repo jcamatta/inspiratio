@@ -57,6 +57,12 @@ export const useBoardCommands = () => ({
     invalidate: [BOARD_QUERY_KEY, GENERATIONS_QUERY_KEY],
     errorTitle: 'Could not delete the item',
   }),
+  restoreItem: useCommand({
+    name: 'item.restore',
+    call: boardApi.restoreItem,
+    invalidate: BOARD,
+    errorTitle: 'Could not restore the item',
+  }),
   createSection: useCommand({
     name: 'section.create',
     call: boardApi.createSection,

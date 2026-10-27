@@ -97,6 +97,14 @@ export const boardApi = {
       ...params,
     }),
 
+  restoreItem: (params: Traced & { readonly id: string }) =>
+    http.request({
+      method: 'POST',
+      path: `/api/items/${params.id}/restore`,
+      schema: NoContent,
+      ...params,
+    }),
+
   createSection: (params: Traced & { readonly input: CreateSectionInput }) =>
     http.request({
       method: 'POST',

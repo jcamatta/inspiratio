@@ -1,70 +1,48 @@
-import { useReactFlow, type NodeProps } from '@xyflow/react'
-import { useCallback, useState, type DragEvent } from 'react'
+import type { NodeProps } from '@xyflow/react'
+import { useState } from 'react'
 import { useWorkspace } from '../../workspace/workspace.context.ts'
+import { useBoardActions } from '../board.actions.ts'
 import { useBoardCommands } from '../board.hooks.ts'
-import { dragPayload, ITEM_DRAG_TYPE } from '../domain/drop-data.ts'
 import type { MediaFlowNode } from '../domain/flow-mapping.ts'
 import { MediaNodeView } from './MediaNode.view.tsx'
 
-export const MediaNode = ({ id, data, selected, dragging }: NodeProps<MediaFlowNode>) => {
+export const MediaNode = ({ id, data, selected }: NodeProps<MediaFlowNode>) => {
   const { state, dispatch } = useWorkspace()
+  const actions = useBoardActions()
   const commands = useBoardCommands()
-  const flow = useReactFlow()
-  const [editingTitle, setEditingTitle] = useState(false)
   const [draftTitle, setDraftTitle] = useState(data.item.title)
+  const editingTitle = state.editing?.kind === 'title' && state.editing.id === id
+  const editingTags = state.editing?.kind === 'tags' && state.editing.id === id
 
-  const startEditing = useCallback(() => {
-    setDraftTitle(data.item.title)
-    setEditingTitle(true)
-  }, [data.item.title])
-
-  const commitTitle = useCallback(() => {
-    setEditingTitle(false)
-    const title = draftTitle.trim()
-    if (title !== '' && title !== data.item.title)
-      void commands.updateItem({ id, patch: { title } })
-  }, [commands, data.item.title, draftTitle, id])
-
-  const onDragStart = useCallback(
-    (event: DragEvent) => {
-      event.dataTransfer.setData(
-        ITEM_DRAG_TYPE,
-        JSON.stringify(dragPayload({ id, selection: state.selection })),
-      )
-      event.dataTransfer.effectAllowed = 'copy'
-    },
-    [id, state.selection],
-  )
+  const stopEditing = () => {
+    dispatch({ type: 'editingStopped' })
+  }
 
   return (
     <MediaNodeView
       data={data}
       selected={selected}
-      dragging={dragging}
       editingTitle={editingTitle}
+      editingTags={editingTags}
       draftTitle={draftTitle}
       onDraftTitleChange={setDraftTitle}
-      onStartEditing={startEditing}
-      onCommitTitle={commitTitle}
-      onCancelEditing={() => {
-        setEditingTitle(false)
+      onStartEditingTitle={() => {
+        setDraftTitle(data.item.title)
+        dispatch({ type: 'editingStarted', editing: { kind: 'title', id } })
       }}
-      onDragToPrompt={onDragStart}
-      onAddToPrompt={() => {
-        dispatch({
-          type: 'referencesAdded',
-          itemIds: dragPayload({ id, selection: state.selection }),
-          caret: null,
-        })
+      onCommitTitle={() => {
+        stopEditing()
+        actions.rename({ id, title: draftTitle.trim() })
       }}
-      onView={() => {
-        dispatch({ type: 'viewerOpened', itemId: id })
+      onCancelEditing={stopEditing}
+      onStartEditingTags={() => {
+        dispatch({ type: 'editingStarted', editing: { kind: 'tags', id } })
       }}
-      onFocus={() => {
-        void flow.fitView({ nodes: [{ id }], duration: 400, padding: 0.2 })
+      onTagsChange={(tagIds) => {
+        actions.setTags({ id, tagIds })
       }}
-      onDelete={() => {
-        void flow.deleteElements({ nodes: [{ id }] })
+      onRemoveTag={(tagId) => {
+        actions.setTags({ id, tagIds: data.item.tagIds.filter((candidate) => candidate !== tagId) })
       }}
       onDimensions={(size) => {
         void commands.reportDimensions({ id, ...size })

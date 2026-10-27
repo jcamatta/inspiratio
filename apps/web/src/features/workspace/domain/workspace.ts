@@ -1,81 +1,43 @@
-import type { GenerationKind } from '@inspiratio/shared'
-import { EMPTY_FILTER, type ItemFilter } from '../../board/domain/flow-mapping.ts'
-import { AUTO_MODEL, dropReferences, removeReference } from '../../generation/domain/prompt.ts'
+export type Editing =
+  | { readonly kind: 'title'; readonly id: string }
+  | { readonly kind: 'tags'; readonly id: string }
+  | { readonly kind: 'section-title'; readonly id: string }
 
-export type PanelTab = 'inspector' | 'generate' | 'queue'
-
-export type Composer = {
-  readonly prompt: string
-  readonly references: readonly string[]
-  readonly kind: GenerationKind
-  readonly model: string
-  readonly aspectRatio: string
-  readonly count: number
-}
-
-/** Client-only UI state shared by the canvas, the inspector and the prompt composer. */
+/** Client-only UI state of the canvas. */
 export type WorkspaceState = {
   readonly selection: readonly string[]
-  readonly filter: ItemFilter
-  readonly panelTab: PanelTab
-  readonly panelOpen: boolean
+  readonly editing: Editing | null
   readonly viewerItemId: string | null
-  readonly composer: Composer
-}
-
-export const EMPTY_COMPOSER: Composer = {
-  prompt: '',
-  references: [],
-  kind: 'image',
-  model: AUTO_MODEL,
-  aspectRatio: 'auto',
-  count: 1,
+  readonly detailsItemId: string | null
+  /** Prompt card currently under a dragged image. */
+  readonly dropTargetId: string | null
 }
 
 export const initialWorkspace: WorkspaceState = {
   selection: [],
-  filter: EMPTY_FILTER,
-  panelTab: 'inspector',
-  panelOpen: true,
+  editing: null,
   viewerItemId: null,
-  composer: EMPTY_COMPOSER,
+  detailsItemId: null,
+  dropTargetId: null,
 }
 
 export type WorkspaceAction =
   | { readonly type: 'selectionChanged'; readonly itemIds: readonly string[] }
-  | { readonly type: 'filterChanged'; readonly filter: ItemFilter }
-  | { readonly type: 'panelTabChanged'; readonly tab: PanelTab }
-  | { readonly type: 'panelToggled' }
+  | { readonly type: 'editingStarted'; readonly editing: Editing }
+  | { readonly type: 'editingStopped' }
   | { readonly type: 'viewerOpened'; readonly itemId: string }
   | { readonly type: 'viewerClosed' }
-  | { readonly type: 'promptChanged'; readonly prompt: string }
-  | {
-      readonly type: 'referencesAdded'
-      readonly itemIds: readonly string[]
-      readonly caret: number | null
-    }
-  | { readonly type: 'referenceRemoved'; readonly itemId: string }
-  | {
-      readonly type: 'composerSettingsChanged'
-      readonly settings: Partial<Omit<Composer, 'prompt' | 'references'>>
-    }
-  | { readonly type: 'composerReset' }
+  | { readonly type: 'detailsOpened'; readonly itemId: string }
+  | { readonly type: 'detailsClosed' }
+  | { readonly type: 'dropTargetChanged'; readonly promptId: string | null }
   | { readonly type: 'itemsDeleted'; readonly itemIds: readonly string[] }
-  | {
-      readonly type: 'generateFromSelection'
-      readonly itemIds: readonly string[]
-      readonly kind: GenerationKind
-    }
 
-const withComposer = (params: {
-  readonly state: WorkspaceState
-  readonly composer: Composer
-}): WorkspaceState => ({
-  ...params.state,
-  composer: params.composer,
-})
+const keepEditing = (params: {
+  readonly editing: Editing | null
+  readonly selection: readonly string[]
+}): Editing | null =>
+  params.editing !== null && params.selection.includes(params.editing.id) ? params.editing : null
 
-/** Pure reducer: (state, action) packed in one param object to honour the single-param rule. */
 export const reduceWorkspace = (params: {
   readonly state: WorkspaceState
   readonly action: WorkspaceAction
@@ -83,87 +45,39 @@ export const reduceWorkspace = (params: {
   const { state, action } = params
   switch (action.type) {
     case 'selectionChanged':
-      return { ...state, selection: action.itemIds }
-    case 'filterChanged':
-      return { ...state, filter: action.filter }
-    case 'panelTabChanged':
-      return { ...state, panelTab: action.tab, panelOpen: true }
-    case 'panelToggled':
-      return { ...state, panelOpen: !state.panelOpen }
+      return {
+        ...state,
+        selection: action.itemIds,
+        editing:
+          state.editing?.kind === 'section-title'
+            ? state.editing
+            : keepEditing({ editing: state.editing, selection: action.itemIds }),
+      }
+    case 'editingStarted':
+      return { ...state, editing: action.editing }
+    case 'editingStopped':
+      return { ...state, editing: null }
     case 'viewerOpened':
       return { ...state, viewerItemId: action.itemId }
     case 'viewerClosed':
       return { ...state, viewerItemId: null }
-    case 'promptChanged':
-      return withComposer({ state, composer: { ...state.composer, prompt: action.prompt } })
-    case 'referencesAdded': {
-      const next = dropReferences({
-        prompt: state.composer.prompt,
-        references: state.composer.references,
-        itemIds: action.itemIds,
-        caret: action.caret,
-      })
-      return {
-        ...withComposer({ state, composer: { ...state.composer, ...next } }),
-        panelTab: 'generate',
-        panelOpen: true,
-      }
-    }
-    case 'referenceRemoved':
-      return withComposer({
-        state,
-        composer: {
-          ...state.composer,
-          ...removeReference({
-            prompt: state.composer.prompt,
-            references: state.composer.references,
-            itemId: action.itemId,
-          }),
-        },
-      })
-    case 'composerSettingsChanged':
-      return withComposer({ state, composer: { ...state.composer, ...action.settings } })
-    case 'composerReset':
-      return withComposer({
-        state,
-        composer: { ...EMPTY_COMPOSER, kind: state.composer.kind, model: state.composer.model },
-      })
+    case 'detailsOpened':
+      return { ...state, detailsItemId: action.itemId }
+    case 'detailsClosed':
+      return { ...state, detailsItemId: null }
+    case 'dropTargetChanged':
+      return state.dropTargetId === action.promptId
+        ? state
+        : { ...state, dropTargetId: action.promptId }
     case 'itemsDeleted': {
       const deleted = new Set(action.itemIds)
-      let composer = state.composer
-      for (const itemId of state.composer.references.filter((id) => deleted.has(id)).reverse()) {
-        composer = {
-          ...composer,
-          ...removeReference({ prompt: composer.prompt, references: composer.references, itemId }),
-        }
-      }
+      const gone = (id: string | null) => (id !== null && deleted.has(id) ? null : id)
       return {
         ...state,
-        composer,
         selection: state.selection.filter((id) => !deleted.has(id)),
-        viewerItemId:
-          state.viewerItemId !== null && deleted.has(state.viewerItemId)
-            ? null
-            : state.viewerItemId,
-      }
-    }
-    case 'generateFromSelection': {
-      const next = dropReferences({
-        prompt: '',
-        references: [],
-        itemIds: action.itemIds,
-        caret: null,
-      })
-      return {
-        ...state,
-        panelTab: 'generate',
-        panelOpen: true,
-        composer: {
-          ...state.composer,
-          ...next,
-          kind: action.kind,
-          model: state.composer.kind === action.kind ? state.composer.model : AUTO_MODEL,
-        },
+        editing: state.editing !== null && deleted.has(state.editing.id) ? null : state.editing,
+        viewerItemId: gone(state.viewerItemId),
+        detailsItemId: gone(state.detailsItemId),
       }
     }
   }

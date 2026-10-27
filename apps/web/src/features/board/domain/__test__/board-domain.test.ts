@@ -103,6 +103,7 @@ describe('context targets', () => {
   const position = { x: 1, y: 2 }
   const itemIds = new Set(['itm_a'])
   const sectionIds = new Set(['sec_1'])
+  const promptIds = new Set(['gen_1'])
 
   it('resolves items, sections and the pane', () => {
     expect(
@@ -111,6 +112,7 @@ describe('context targets', () => {
         position,
         itemIds,
         sectionIds,
+        promptIds,
       }),
     ).toEqual({ kind: 'item', id: 'itm_a', position })
     expect(
@@ -119,12 +121,21 @@ describe('context targets', () => {
         position,
         itemIds,
         sectionIds,
+        promptIds,
       }),
     ).toEqual({ kind: 'section', id: 'sec_1', position })
     expect(
-      resolveContextTarget({ element: host.querySelector('#pane'), position, itemIds, sectionIds }),
+      resolveContextTarget({
+        element: host.querySelector('#pane'),
+        position,
+        itemIds,
+        sectionIds,
+        promptIds,
+      }),
     ).toEqual({ kind: 'pane', position })
-    expect(resolveContextTarget({ element: null, position, itemIds, sectionIds }).kind).toBe('pane')
+    expect(
+      resolveContextTarget({ element: null, position, itemIds, sectionIds, promptIds }).kind,
+    ).toBe('pane')
   })
 
   it('computes targets, z-order and detach changes', () => {
@@ -148,5 +159,36 @@ describe('formatTime', () => {
     expect(formatTime(0)).toBe('0:00')
     expect(formatTime(75.9)).toBe('1:15')
     expect(formatTime(Number.NaN)).toBe('0:00')
+  })
+})
+
+describe('prompt placement and targets', () => {
+  it('resolves prompt cards and places new ones next to their references', async () => {
+    const { promptPlacement, resolveContextTarget: resolve } = await import('../context-target.ts')
+    const host = document.createElement('div')
+    host.innerHTML = '<div class="react-flow__node" data-id="gen_1"><span id="in"></span></div>'
+    expect(
+      resolve({
+        element: host.querySelector('#in'),
+        position: { x: 0, y: 0 },
+        itemIds: new Set(),
+        sectionIds: new Set(),
+        promptIds: new Set(['gen_1']),
+      }),
+    ).toEqual({ kind: 'prompt', id: 'gen_1', position: { x: 0, y: 0 } })
+    const items = [
+      makeItem({ id: 'a', position: { x: 0, y: 30 } }),
+      makeItem({ id: 'b', position: { x: 400, y: 10 } }),
+      makeItem({ id: 'c', sectionId: 's' }),
+    ]
+    expect(
+      promptPlacement({ ids: ['a', 'b'], items, prompts: [], fallback: { x: 1, y: 1 } }),
+    ).toEqual({ x: 768, y: 10 })
+    expect(
+      promptPlacement({ ids: ['a'], items, prompts: [{ x: 800, y: 0 }], fallback: { x: 1, y: 1 } }),
+    ).toEqual({ x: 1188, y: 30 })
+    expect(
+      promptPlacement({ ids: ['c'], items, prompts: [], fallback: { x: 5000, y: 1 } }),
+    ).toEqual({ x: 5000, y: 1 })
   })
 })

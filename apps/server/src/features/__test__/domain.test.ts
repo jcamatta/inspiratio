@@ -9,6 +9,7 @@ import {
   resolveReferences,
   resultPosition,
   transition,
+  updateDraft,
 } from '../generations/domain/generation.ts'
 import {
   absolutePositionOf,
@@ -257,7 +258,9 @@ describe('generation domain', () => {
       id: 'gen_1',
       now: NOW,
       traceId: 'trace',
+      position: { x: 10, y: 20 },
       input: {
+        submit: true,
         prompt: 'p',
         kind: 'image',
         model: null,
@@ -318,5 +321,47 @@ describe('generation domain', () => {
     expect(
       resultPosition({ anchors: [], fallback: { x: 5, y: 5 }, index: 2, slotHeight: 10 }),
     ).toEqual({ x: 5, y: 25 })
+  })
+
+  it('edits drafts and only allows moving submitted requests', () => {
+    const draft = { ...request(), status: 'draft' as const }
+    const edited = updateDraft({
+      request: draft,
+      patch: {
+        prompt: 'new',
+        kind: 'video',
+        model: 'kling3_0',
+        aspectRatio: '9:16',
+        count: 2,
+        referenceItemIds: ['b', 'a'],
+      },
+      now: 'l',
+    })
+    expect(edited).toMatchObject({
+      ok: true,
+      value: {
+        prompt: 'new',
+        kind: 'video',
+        model: 'kling3_0',
+        aspectRatio: '9:16',
+        count: 2,
+        references: [
+          { itemId: 'b', label: '@1' },
+          { itemId: 'a', label: '@2' },
+        ],
+      },
+    })
+    const cleared = updateDraft({
+      request: { ...draft, model: 'm', aspectRatio: '1:1' },
+      patch: { model: null, aspectRatio: null },
+      now: 'l',
+    })
+    expect(cleared).toMatchObject({ ok: true, value: { model: null, aspectRatio: null } })
+    expect(
+      updateDraft({ request: request(), patch: { position: { x: 1, y: 2 } }, now: 'l' }),
+    ).toMatchObject({ ok: true, value: { position: { x: 1, y: 2 } } })
+    expect(updateDraft({ request: request(), patch: { prompt: 'x' }, now: 'l' }).ok).toBe(false)
+    expect(canTransition({ from: 'draft', to: 'pending' })).toBe(true)
+    expect(canTransition({ from: 'draft', to: 'completed' })).toBe(false)
   })
 })

@@ -175,9 +175,23 @@ export const createItemCommands = (deps: ItemDeps) => {
     await deps.store.update((state) => ({
       ...state,
       items: removeById({ list: state.items, id: params.id }),
+      trash: upsert({ list: state.trash, entity: item }),
     }))
     await deps.storage.moveToTrash(item.media.fileName)
     deps.logger.info({ msg: 'item.removed', itemId: item.id })
+    return ok(undefined)
+  }
+
+  const restore = async (params: Id): Promise<Result<undefined>> => {
+    const item = findById({ list: deps.store.read().trash, id: params.id })
+    if (item === undefined) return notFound({ entity: 'Deleted item', id: params.id })
+    await deps.storage.restoreFromTrash(item.media.fileName)
+    await deps.store.update((state) => ({
+      ...state,
+      trash: removeById({ list: state.trash, id: params.id }),
+      items: upsert({ list: state.items, entity: item }),
+    }))
+    deps.logger.info({ msg: 'item.restored', itemId: item.id })
     return ok(undefined)
   }
 
@@ -190,5 +204,6 @@ export const createItemCommands = (deps: ItemDeps) => {
     reportDimensions,
     applyLayout,
     remove,
+    restore,
   }
 }

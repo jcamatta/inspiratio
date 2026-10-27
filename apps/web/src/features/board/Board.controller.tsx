@@ -1,7 +1,8 @@
-import { gridSlot, type Vec2 } from '@inspiratio/shared'
+import { gridSlot, type GenerationKind, type Vec2 } from '@inspiratio/shared'
 import {
   applyNodeChanges,
   useReactFlow,
+  useViewport,
   type NodeChange,
   type OnSelectionChangeParams,
 } from '@xyflow/react'
@@ -15,23 +16,32 @@ import {
   type MouseEvent,
 } from 'react'
 import { notify } from '../../shared/ui/index.ts'
+import { useGenerationNotifications, useGenerationsQuery } from '../generation/generation.hooks.ts'
+import { useHistory } from '../history/history.context.ts'
 import { useWorkspace } from '../workspace/workspace.context.ts'
+import { useBoardActions } from './board.actions.ts'
 import { useBoardCommands, useBoardQuery } from './board.hooks.ts'
-import { BoardView } from './Board.view.tsx'
+import { BoardView, type BoardMenu } from './Board.view.tsx'
 import {
   actionTargets,
   backZIndex,
   detachChanges,
   frontZIndex,
+  promptPlacement,
   resolveContextTarget,
   type ContextTarget,
 } from './domain/context-target.ts'
 import { parseTransfer, snapshotTransfer, type DropPayload } from './domain/drop-data.ts'
 import {
   applyReparenting,
+  deletableNodes,
+  hoveredPrompt,
+  isDragging,
   isMediaNode,
+  isPromptNode,
   isSectionNode,
   planPersistence,
+  revertPositions,
   selectedItemIds,
   toFlowNodes,
   type BoardNode,
@@ -48,11 +58,19 @@ const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
 
+const hasWork = (plan: PersistencePlan): boolean =>
+  plan.items.length + plan.sections.length + plan.prompts.length + plan.drops.length > 0
+
 export const Board = () => {
+  useGenerationNotifications()
   const { board, isLoading } = useBoardQuery()
+  const { requests } = useGenerationsQuery()
   const { state, dispatch } = useWorkspace()
   const commands = useBoardCommands()
+  const actions = useBoardActions()
+  const history = useHistory()
   const flow = useReactFlow<BoardNode>()
+  const { zoom } = useViewport()
   const [nodes, setNodes] = useState<BoardNode[]>([])
   const nodesRef = useRef<BoardNode[]>([])
   const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null)
@@ -60,7 +78,7 @@ export const Board = () => {
     kind: 'pane',
     position: { x: 0, y: 0 },
   })
-  const [dropActive, setDropActive] = useState(false)
+  const [fileDropActive, setFileDropActive] = useState(false)
   const [urlDialog, setUrlDialog] = useState<{ readonly open: boolean; readonly position: Vec2 }>({
     open: false,
     position: { x: 0, y: 0 },
@@ -75,38 +93,35 @@ export const Board = () => {
     commitNodes(
       toFlowNodes({
         board,
-        filter: state.filter,
-        references: state.composer.references,
+        generations: requests,
         selection: state.selection,
+        dropTargetId: state.dropTargetId,
         previous: nodesRef.current,
       }),
     )
-  }, [board, state.filter, state.composer.references, state.selection, commitNodes])
-
-  const persist = useCallback(
-    (plan: PersistencePlan) => {
-      if (plan.items.length > 0) void commands.applyLayout({ changes: plan.items })
-      for (const section of plan.sections) {
-        const { id, ...patch } = section
-        void commands.updateSection({ id, patch })
-      }
-    },
-    [commands],
-  )
+  }, [board, requests, state.selection, state.dropTargetId, commitNodes])
 
   const onNodesChange = useCallback(
     (changes: NodeChange<BoardNode>[]) => {
       const applied = applyNodeChanges(changes, nodesRef.current)
+      if (isDragging(changes))
+        dispatch({
+          type: 'dropTargetChanged',
+          promptId: hoveredPrompt({ changes, nodes: applied }),
+        })
       const plan = planPersistence({ changes, nodes: applied })
-      commitNodes(applyReparenting({ nodes: applied, changes: plan.items }))
-      persist(plan)
+      const dropped = plan.drops.flatMap((drop) => drop.itemIds)
+      const reverted = revertPositions({ nodes: applied, itemIds: dropped, items: board.items })
+      commitNodes(applyReparenting({ nodes: reverted, changes: plan.items }))
+      if (!hasWork(plan)) return
+      dispatch({ type: 'dropTargetChanged', promptId: null })
+      actions.persistPlan(plan)
     },
-    [commitNodes, persist],
+    [actions, board.items, commitNodes, dispatch],
   )
 
   const onSelectionChange = useCallback(
     (selection: OnSelectionChangeParams<BoardNode>) => {
-      // React Flow reports an empty selection before the board has loaded; keep the workspace one.
       if (nodesRef.current.length === 0) return
       const ids = selectedItemIds(selection.nodes)
       if (!sameIds({ left: ids, right: state.selection }))
@@ -117,13 +132,14 @@ export const Board = () => {
 
   const onDelete = useCallback(
     (deleted: { readonly nodes: readonly BoardNode[] }) => {
-      const itemIds = deleted.nodes.filter(isMediaNode).map((node) => node.id)
-      for (const id of itemIds) void commands.deleteItem({ id })
-      for (const node of deleted.nodes.filter(isSectionNode))
-        void commands.deleteSection({ id: node.id })
+      const nodes = deletableNodes(deleted.nodes)
+      const itemIds = nodes.filter(isMediaNode).map((node) => node.id)
+      actions.deleteItems(itemIds)
+      for (const node of nodes.filter(isSectionNode)) actions.deleteSection(node.id)
+      for (const node of nodes.filter(isPromptNode)) actions.deletePrompt(node.id)
       if (itemIds.length > 0) dispatch({ type: 'itemsDeleted', itemIds })
     },
-    [commands, dispatch],
+    [actions, dispatch],
   )
 
   const viewportCenter = useCallback((): Vec2 => {
@@ -137,20 +153,26 @@ export const Board = () => {
   const importPayload = useCallback(
     async (params: { readonly payload: DropPayload; readonly position: Vec2 }) => {
       const { payload, position } = params
+      const ids: string[] = []
       if (payload.kind === 'files') {
         const created = await commands.uploadFiles({ files: payload.files, position })
-        if (created !== undefined)
-          notify({ title: `Added ${created.ids.length} reference(s)`, tone: 'success' })
+        ids.push(...(created?.ids ?? []))
       }
       if (payload.kind === 'urls') {
-        for (const [index, url] of payload.urls.entries())
-          await commands.importUrl({
+        for (const [index, url] of payload.urls.entries()) {
+          const created = await commands.importUrl({
             url,
             position: gridSlot({ origin: position, index }),
           })
+          if (created !== undefined) ids.push(created.id)
+        }
+      }
+      if (ids.length > 0) {
+        actions.recordImport(ids)
+        notify({ title: `Added ${String(ids.length)} reference(s)`, tone: 'success' })
       }
     },
-    [commands],
+    [actions, commands],
   )
 
   useEffect(() => {
@@ -167,30 +189,12 @@ export const Board = () => {
     }
   }, [importPayload, viewportCenter])
 
-  const onDrop = useCallback(
-    (event: DragEvent) => {
-      event.preventDefault()
-      setDropActive(false)
-      const payload = parseTransfer(snapshotTransfer(event.dataTransfer))
-      void importPayload({
-        payload,
-        position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-      })
-    },
-    [flow, importPayload],
-  )
-
-  const onDragOver = useCallback((event: DragEvent) => {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
-    setDropActive(true)
-  }, [])
-
   const itemIds = useMemo(() => new Set(board.items.map((item) => item.id)), [board.items])
   const sectionIds = useMemo(
     () => new Set(board.sections.map((section) => section.id)),
     [board.sections],
   )
+  const promptIds = useMemo(() => new Set(requests.map((request) => request.id)), [requests])
 
   const onContextMenu = useCallback(
     (event: MouseEvent) => {
@@ -199,12 +203,13 @@ export const Board = () => {
         position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
         itemIds,
         sectionIds,
+        promptIds,
       })
       setMenuTarget(target)
       if (target.kind !== 'pane' && !state.selection.includes(target.id))
         commitNodes(nodesRef.current.map((node) => ({ ...node, selected: node.id === target.id })))
     },
-    [flow, itemIds, sectionIds, state.selection, commitNodes],
+    [flow, itemIds, sectionIds, promptIds, state.selection, commitNodes],
   )
 
   const targetIds =
@@ -212,46 +217,63 @@ export const Board = () => {
       ? actionTargets({ id: menuTarget.id, selection: state.selection })
       : []
 
-  const menu = {
+  const generateFrom = (kind: GenerationKind) => {
+    actions.createPrompt({
+      kind,
+      referenceItemIds: targetIds,
+      position: promptPlacement({
+        ids: targetIds,
+        items: board.items,
+        prompts: requests.map((request) => request.position),
+        fallback: menuTarget.position,
+      }),
+    })
+  }
+
+  const menu: BoardMenu = {
     target: menuTarget,
     targetCount: targetIds.length,
     targetInSection: targetIds.some(
       (id) => board.items.find((item) => item.id === id)?.sectionId !== null,
     ),
-    onGenerate: (kind: 'image' | 'video') => {
-      dispatch({ type: 'generateFromSelection', itemIds: targetIds, kind })
+    onGenerate: generateFrom,
+    onRename: () => {
+      if (menuTarget.kind === 'item')
+        dispatch({ type: 'editingStarted', editing: { kind: 'title', id: menuTarget.id } })
+      if (menuTarget.kind === 'section')
+        dispatch({ type: 'editingStarted', editing: { kind: 'section-title', id: menuTarget.id } })
     },
-    onAddToPrompt: () => {
-      dispatch({ type: 'referencesAdded', itemIds: targetIds, caret: null })
+    onAddTags: () => {
+      if (menuTarget.kind === 'item')
+        dispatch({ type: 'editingStarted', editing: { kind: 'tags', id: menuTarget.id } })
     },
     onView: () => {
       if (menuTarget.kind === 'item') dispatch({ type: 'viewerOpened', itemId: menuTarget.id })
     },
-    onFocus: () => {
-      void flow.fitView({ nodes: targetIds.map((id) => ({ id })), duration: 400, padding: 0.2 })
+    onDetails: () => {
+      if (menuTarget.kind === 'item') dispatch({ type: 'detailsOpened', itemId: menuTarget.id })
     },
     onBringToFront: () => {
-      for (const id of targetIds)
-        void commands.updateItem({ id, patch: { zIndex: frontZIndex(board.items) } })
+      actions.setZIndex({ ids: targetIds, zIndex: frontZIndex(board.items) })
     },
     onSendToBack: () => {
-      for (const id of targetIds)
-        void commands.updateItem({ id, patch: { zIndex: backZIndex(board.items) } })
+      actions.setZIndex({ ids: targetIds, zIndex: backZIndex(board.items) })
     },
     onDetach: () => {
-      const changes = detachChanges({
-        ids: targetIds,
-        items: board.items,
-        sections: board.sections,
-      })
-      if (changes.length > 0) void commands.applyLayout({ changes })
+      actions.detach(
+        detachChanges({ ids: targetIds, items: board.items, sections: board.sections }),
+      )
     },
     onDelete: () => {
-      const ids = menuTarget.kind === 'section' ? [menuTarget.id] : targetIds
+      const ids =
+        menuTarget.kind === 'item' ? targetIds : menuTarget.kind === 'pane' ? [] : [menuTarget.id]
       void flow.deleteElements({ nodes: ids.map((id) => ({ id })) })
     },
+    onNewPrompt: () => {
+      actions.createPrompt({ kind: 'image', referenceItemIds: [], position: menuTarget.position })
+    },
     onAddSection: () => {
-      void commands.createSection({ input: { position: menuTarget.position } })
+      actions.createSection(menuTarget.position)
     },
     onImportUrl: () => {
       setUrlDialog({ open: true, position: menuTarget.position })
@@ -261,30 +283,66 @@ export const Board = () => {
     },
     onSelectAll: () => {
       commitNodes(nodesRef.current.map((node) => ({ ...node, selected: isMediaNode(node) })))
+      dispatch({ type: 'selectionChanged', itemIds: board.items.map((item) => item.id) })
     },
   }
-
-  const viewerItem = board.items.find((item) => item.id === state.viewerItemId) ?? null
 
   return (
     <BoardView
       onWrapperElement={setWrapper}
       nodes={nodes}
-      isEmpty={!isLoading && board.items.length === 0 && board.sections.length === 0}
-      dropActive={dropActive}
+      isEmpty={
+        !isLoading &&
+        board.items.length === 0 &&
+        board.sections.length === 0 &&
+        requests.length === 0
+      }
+      fileDropActive={fileDropActive}
       onNodesChange={onNodesChange}
       onSelectionChange={onSelectionChange}
       onDelete={onDelete}
-      onDrop={onDrop}
-      onDragOver={onDragOver}
+      onDrop={(event: DragEvent) => {
+        event.preventDefault()
+        setFileDropActive(false)
+        void importPayload({
+          payload: parseTransfer(snapshotTransfer(event.dataTransfer)),
+          position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+        })
+      }}
+      onDragOver={(event: DragEvent) => {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+        setFileDropActive(true)
+      }}
       onDragLeave={() => {
-        setDropActive(false)
+        setFileDropActive(false)
       }}
       onContextMenu={onContextMenu}
       menu={menu}
-      viewerItem={viewerItem}
+      zoom={zoom}
+      selectionCount={state.selection.length}
+      canUndo={history.canUndo}
+      canRedo={history.canRedo}
+      onUndo={() => {
+        void history.undo()
+      }}
+      onRedo={() => {
+        void history.redo()
+      }}
+      onZoomIn={() => {
+        void flow.zoomIn({ duration: 200 })
+      }}
+      onZoomOut={() => {
+        void flow.zoomOut({ duration: 200 })
+      }}
+      onFitView={menu.onFitView}
+      viewerItem={board.items.find((item) => item.id === state.viewerItemId) ?? null}
       onCloseViewer={() => {
         dispatch({ type: 'viewerClosed' })
+      }}
+      detailsItem={board.items.find((item) => item.id === state.detailsItemId) ?? null}
+      onCloseDetails={() => {
+        dispatch({ type: 'detailsClosed' })
       }}
       urlDialogOpen={urlDialog.open}
       onUrlDialogOpenChange={(open) => {
@@ -292,26 +350,8 @@ export const Board = () => {
       }}
       onImportUrl={(url) => {
         setUrlDialog((current) => ({ ...current, open: false }))
-        void commands.importUrl({ url, position: urlDialog.position })
+        void importPayload({ payload: { kind: 'urls', urls: [url] }, position: urlDialog.position })
       }}
     />
   )
-}
-
-export type BoardMenu = {
-  readonly target: ContextTarget
-  readonly targetCount: number
-  readonly targetInSection: boolean
-  readonly onGenerate: (kind: 'image' | 'video') => void
-  readonly onAddToPrompt: () => void
-  readonly onView: () => void
-  readonly onFocus: () => void
-  readonly onBringToFront: () => void
-  readonly onSendToBack: () => void
-  readonly onDetach: () => void
-  readonly onDelete: () => void
-  readonly onAddSection: () => void
-  readonly onImportUrl: () => void
-  readonly onFitView: () => void
-  readonly onSelectAll: () => void
 }

@@ -92,7 +92,7 @@ export const AUTO_MODEL = 'auto'
 
 /** Suggestions only: Claude may pick another Higgsfield model (models_explore) when set to auto. */
 export const MODEL_OPTIONS: readonly ModelOption[] = [
-  { value: AUTO_MODEL, label: 'Let Claude choose', kind: 'any' },
+  { value: AUTO_MODEL, label: 'Auto', kind: 'any' },
   { value: 'nano_banana_pro', label: 'Nano Banana Pro', kind: 'image' },
   { value: 'gpt_image_2_5', label: 'GPT Image 2.5', kind: 'image' },
   { value: 'seedream_4_5', label: 'Seedream 4.5', kind: 'image' },

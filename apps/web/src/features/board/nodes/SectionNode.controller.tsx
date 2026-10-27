@@ -1,20 +1,15 @@
 import type { NodeProps } from '@xyflow/react'
-import { useCallback, useState } from 'react'
-import { useBoardCommands } from '../board.hooks.ts'
+import { useState } from 'react'
+import { useWorkspace } from '../../workspace/workspace.context.ts'
+import { useBoardActions } from '../board.actions.ts'
 import type { SectionFlowNode } from '../domain/flow-mapping.ts'
 import { SectionNodeView } from './SectionNode.view.tsx'
 
 export const SectionNode = ({ id, data, selected }: NodeProps<SectionFlowNode>) => {
-  const commands = useBoardCommands()
-  const [editing, setEditing] = useState(false)
+  const { state, dispatch } = useWorkspace()
+  const actions = useBoardActions()
   const [draft, setDraft] = useState(data.section.title)
-
-  const commit = useCallback(() => {
-    setEditing(false)
-    const title = draft.trim()
-    if (title !== '' && title !== data.section.title)
-      void commands.updateSection({ id, patch: { title } })
-  }, [commands, data.section.title, draft, id])
+  const editing = state.editing?.kind === 'section-title' && state.editing.id === id
 
   return (
     <SectionNodeView
@@ -25,11 +20,14 @@ export const SectionNode = ({ id, data, selected }: NodeProps<SectionFlowNode>) 
       onDraftChange={setDraft}
       onStartEditing={() => {
         setDraft(data.section.title)
-        setEditing(true)
+        dispatch({ type: 'editingStarted', editing: { kind: 'section-title', id } })
       }}
-      onCommit={commit}
+      onCommit={() => {
+        dispatch({ type: 'editingStopped' })
+        actions.renameSection({ id, title: draft.trim() })
+      }}
       onCancel={() => {
-        setEditing(false)
+        dispatch({ type: 'editingStopped' })
       }}
     />
   )

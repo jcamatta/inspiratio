@@ -3,11 +3,14 @@ import {
   GenerationRequestSchema,
   type CreateGenerationInput,
   type TraceContext,
+  type UpdateGenerationInput,
 } from '@inspiratio/shared'
 import { z } from 'zod'
 import { http } from '../../../shared/api/http-client.ts'
 
 type Traced = { readonly trace?: TraceContext }
+
+const NoContent = z.undefined()
 
 export const generationApi = {
   list: () =>
@@ -23,23 +26,40 @@ export const generationApi = {
       path: '/api/generations',
       body: params.input,
       schema: CreatedSchema,
-      ...params,
+      trace: params.trace,
+    }),
+
+  update: (params: Traced & { readonly id: string; readonly patch: UpdateGenerationInput }) =>
+    http.request({
+      method: 'PATCH',
+      path: `/api/generations/${params.id}`,
+      body: params.patch,
+      schema: NoContent,
+      trace: params.trace,
+    }),
+
+  submit: (params: Traced & { readonly id: string }) =>
+    http.request({
+      method: 'POST',
+      path: `/api/generations/${params.id}/submit`,
+      schema: CreatedSchema,
+      trace: params.trace,
     }),
 
   retry: (params: Traced & { readonly id: string }) =>
     http.request({
       method: 'POST',
       path: `/api/generations/${params.id}/retry`,
-      schema: z.undefined(),
-      ...params,
+      schema: NoContent,
+      trace: params.trace,
     }),
 
   remove: (params: Traced & { readonly id: string }) =>
     http.request({
       method: 'DELETE',
       path: `/api/generations/${params.id}`,
-      schema: z.undefined(),
-      ...params,
+      schema: NoContent,
+      trace: params.trace,
     }),
 }
 

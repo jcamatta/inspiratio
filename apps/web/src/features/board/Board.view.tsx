@@ -1,4 +1,4 @@
-import { mediaUrlOf } from '@inspiratio/shared'
+import type { GenerationKind, Item } from '@inspiratio/shared'
 import {
   Background,
   BackgroundVariant,
@@ -12,15 +12,21 @@ import {
   ArrowUpToLine,
   Expand,
   Film,
-  Focus,
   ImagePlus,
+  Info,
   Link2,
   ListChecks,
   LogOut,
   Maximize,
-  MessageSquarePlus,
+  Pencil,
+  Redo2,
+  Sparkles,
   SquareDashed,
+  Tag,
   Trash2,
+  Undo2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import type { DragEvent, MouseEvent } from 'react'
 import { cx } from '../../shared/lib/cx.ts'
@@ -28,33 +34,66 @@ import {
   Box,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuLabel,
   ContextMenuRoot,
   ContextMenuSeparator,
   ContextMenuTrigger,
-  Dialog,
-  Kbd,
-  MediaImage,
-  MediaVideo,
+  IconButton,
+  Panel,
+  Separator,
   Stack,
   Text,
 } from '../../shared/ui/index.ts'
-import type { BoardMenu } from './Board.controller.tsx'
+import { Details } from '../details/Details.controller.tsx'
+import { Viewer } from '../viewer/Viewer.controller.tsx'
+import type { ContextTarget } from './domain/context-target.ts'
 import type { BoardNode } from './domain/flow-mapping.ts'
 import { MediaNode } from './nodes/MediaNode.controller.tsx'
+import { PromptNode } from './nodes/PromptNode.controller.tsx'
 import { SectionNode } from './nodes/SectionNode.controller.tsx'
 import { UrlImportDialog } from './UrlImportDialog.controller.tsx'
-import type { Item } from '@inspiratio/shared'
 
-const NODE_TYPES = { media: MediaNode, section: SectionNode }
+const NODE_TYPES = { media: MediaNode, section: SectionNode, prompt: PromptNode }
 const PAN_BUTTONS = [1]
 const DELETE_KEYS = ['Delete', 'Backspace']
+const MULTI_SELECT_KEYS = ['Shift', 'Control', 'Meta']
 
-export type BoardViewProps = {
+export type BoardMenu = {
+  readonly target: ContextTarget
+  readonly targetCount: number
+  readonly targetInSection: boolean
+  readonly onGenerate: (kind: GenerationKind) => void
+  readonly onRename: () => void
+  readonly onAddTags: () => void
+  readonly onView: () => void
+  readonly onDetails: () => void
+  readonly onBringToFront: () => void
+  readonly onSendToBack: () => void
+  readonly onDetach: () => void
+  readonly onDelete: () => void
+  readonly onNewPrompt: () => void
+  readonly onAddSection: () => void
+  readonly onImportUrl: () => void
+  readonly onFitView: () => void
+  readonly onSelectAll: () => void
+}
+
+type BottomBarProps = {
+  readonly zoom: number
+  readonly selectionCount: number
+  readonly canUndo: boolean
+  readonly canRedo: boolean
+  readonly onUndo: () => void
+  readonly onRedo: () => void
+  readonly onZoomIn: () => void
+  readonly onZoomOut: () => void
+  readonly onFitView: () => void
+}
+
+export type BoardViewProps = BottomBarProps & {
   readonly onWrapperElement: (element: HTMLDivElement | null) => void
   readonly nodes: BoardNode[]
   readonly isEmpty: boolean
-  readonly dropActive: boolean
+  readonly fileDropActive: boolean
   readonly onNodesChange: (changes: NodeChange<BoardNode>[]) => void
   readonly onSelectionChange: (selection: OnSelectionChangeParams<BoardNode>) => void
   readonly onDelete: (deleted: { readonly nodes: readonly BoardNode[] }) => void
@@ -65,6 +104,8 @@ export type BoardViewProps = {
   readonly menu: BoardMenu
   readonly viewerItem: Item | null
   readonly onCloseViewer: () => void
+  readonly detailsItem: Item | null
+  readonly onCloseDetails: () => void
   readonly urlDialogOpen: boolean
   readonly onUrlDialogOpenChange: (open: boolean) => void
   readonly onImportUrl: (url: string) => void
@@ -72,42 +113,43 @@ export type BoardViewProps = {
 
 const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
   if (menu.target.kind === 'item') {
-    const plural = menu.targetCount > 1 ? ` (${menu.targetCount})` : ''
+    const count = menu.targetCount > 1 ? ` (${String(menu.targetCount)})` : ''
     return (
       <ContextMenuContent testId="context-menu">
-        <ContextMenuLabel>Generate with references{plural}</ContextMenuLabel>
         <ContextMenuItem
-          label="Create image…"
+          label={`Generate image${count}`}
           icon={ImagePlus}
           onSelect={() => menu.onGenerate('image')}
           testId="menu-generate-image"
         />
         <ContextMenuItem
-          label="Create video…"
+          label={`Generate video${count}`}
           icon={Film}
           onSelect={() => menu.onGenerate('video')}
           testId="menu-generate-video"
         />
-        <ContextMenuItem
-          label="Add to prompt"
-          icon={MessageSquarePlus}
-          onSelect={menu.onAddToPrompt}
-          testId="menu-add-to-prompt"
-        />
         <ContextMenuSeparator />
+        <ContextMenuItem
+          label="Rename"
+          icon={Pencil}
+          hint="Double-click"
+          onSelect={menu.onRename}
+          testId="menu-rename"
+        />
+        <ContextMenuItem label="Add tags" icon={Tag} onSelect={menu.onAddTags} testId="menu-tags" />
         <ContextMenuItem
           label="View full size"
           icon={Expand}
           onSelect={menu.onView}
-          hint="dbl-click"
           testId="menu-view"
         />
         <ContextMenuItem
-          label="Zoom to fit"
-          icon={Focus}
-          onSelect={menu.onFocus}
-          testId="menu-focus"
+          label="Details"
+          icon={Info}
+          onSelect={menu.onDetails}
+          testId="menu-details"
         />
+        <ContextMenuSeparator />
         <ContextMenuItem
           label="Bring to front"
           icon={ArrowUpToLine}
@@ -130,11 +172,11 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
         )}
         <ContextMenuSeparator />
         <ContextMenuItem
-          label={`Delete${plural}`}
+          label={`Delete${count}`}
           icon={Trash2}
           tone="danger"
-          onSelect={menu.onDelete}
           hint="Del"
+          onSelect={menu.onDelete}
           testId="menu-delete"
         />
       </ContextMenuContent>
@@ -143,9 +185,14 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
   if (menu.target.kind === 'section') {
     return (
       <ContextMenuContent testId="context-menu">
-        <ContextMenuLabel>Section</ContextMenuLabel>
         <ContextMenuItem
-          label="Delete section (keep items)"
+          label="Rename section"
+          icon={Pencil}
+          onSelect={menu.onRename}
+          testId="menu-rename-section"
+        />
+        <ContextMenuItem
+          label="Delete section"
           icon={Trash2}
           tone="danger"
           onSelect={menu.onDelete}
@@ -154,10 +201,29 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
       </ContextMenuContent>
     )
   }
+  if (menu.target.kind === 'prompt') {
+    return (
+      <ContextMenuContent testId="context-menu">
+        <ContextMenuItem
+          label="Delete prompt"
+          icon={Trash2}
+          tone="danger"
+          onSelect={menu.onDelete}
+          testId="menu-delete-prompt"
+        />
+      </ContextMenuContent>
+    )
+  }
   return (
     <ContextMenuContent testId="context-menu">
       <ContextMenuItem
-        label="Add section here"
+        label="New prompt"
+        icon={Sparkles}
+        onSelect={menu.onNewPrompt}
+        testId="menu-new-prompt"
+      />
+      <ContextMenuItem
+        label="Add section"
         icon={SquareDashed}
         onSelect={menu.onAddSection}
         testId="menu-add-section"
@@ -170,13 +236,13 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
       />
       <ContextMenuSeparator />
       <ContextMenuItem
-        label="Select all"
+        label="Select all images"
         icon={ListChecks}
         onSelect={menu.onSelectAll}
         testId="menu-select-all"
       />
       <ContextMenuItem
-        label="Fit everything"
+        label="Fit to screen"
         icon={Maximize}
         onSelect={menu.onFitView}
         testId="menu-fit"
@@ -185,36 +251,53 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
   )
 }
 
-const EmptyState = () => (
-  <Stack
-    align="center"
-    justify="center"
-    gap={3}
-    className="pointer-events-none absolute inset-0"
-    testId="empty-state"
+const BottomBar = (props: BottomBarProps) => (
+  <Panel
+    className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 p-1"
+    testId="bottom-bar"
   >
-    <Box className="rounded-2xl border border-dashed border-border-strong bg-panel/70 px-8 py-6 text-center backdrop-blur">
-      <Stack align="center" gap={2}>
-        <Text variant="title">Drop your references here</Text>
-        <Text variant="caption">
-          Drag images or videos from your desktop or browser, or paste with <Kbd>Ctrl</Kbd>{' '}
-          <Kbd>V</Kbd>
+    <IconButton
+      icon={Undo2}
+      label="Undo (Ctrl+Z)"
+      disabled={!props.canUndo}
+      onClick={props.onUndo}
+      testId="undo"
+    />
+    <IconButton
+      icon={Redo2}
+      label="Redo (Ctrl+Shift+Z)"
+      disabled={!props.canRedo}
+      onClick={props.onRedo}
+      testId="redo"
+    />
+    <Separator orientation="vertical" />
+    <IconButton icon={ZoomOut} label="Zoom out" onClick={props.onZoomOut} testId="zoom-out" />
+    <Text variant="mono" className="w-11 text-center" testId="zoom-level">
+      {Math.round(props.zoom * 100)}%
+    </Text>
+    <IconButton icon={ZoomIn} label="Zoom in" onClick={props.onZoomIn} testId="zoom-in" />
+    <IconButton icon={Maximize} label="Fit to screen" onClick={props.onFitView} testId="fit" />
+    {props.selectionCount > 0 && (
+      <>
+        <Separator orientation="vertical" />
+        <Text variant="label" className="px-2 text-mint-700" testId="selection-count">
+          {props.selectionCount} selected
         </Text>
-        <Text variant="caption">
-          Scroll to zoom · <Kbd>Space</Kbd> + drag or middle-click to pan · right-click for actions
-        </Text>
-      </Stack>
-    </Box>
-  </Stack>
+      </>
+    )}
+  </Panel>
 )
 
 export const BoardView = ({ onWrapperElement, ...props }: BoardViewProps) => (
   <ContextMenuRoot>
-    <ContextMenuTrigger className="relative min-w-0 flex-1" onContextMenu={props.onContextMenu}>
+    <ContextMenuTrigger className="relative size-full" onContextMenu={props.onContextMenu}>
       <Box
         ref={onWrapperElement}
         testId="board"
-        className={cx('absolute inset-0', props.dropActive && 'ring-4 ring-primary/60 ring-inset')}
+        className={cx(
+          'absolute inset-0',
+          props.fileDropActive && 'ring-4 ring-primary/60 ring-inset',
+        )}
         onDrop={props.onDrop}
         onDragOver={props.onDragOver}
         onDragLeave={props.onDragLeave}
@@ -229,7 +312,7 @@ export const BoardView = ({ onWrapperElement, ...props }: BoardViewProps) => (
           selectionOnDrag
           panOnDrag={PAN_BUTTONS}
           deleteKeyCode={DELETE_KEYS}
-          multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
+          multiSelectionKeyCode={MULTI_SELECT_KEYS}
           minZoom={0.05}
           maxZoom={8}
           zoomOnDoubleClick={false}
@@ -245,35 +328,24 @@ export const BoardView = ({ onWrapperElement, ...props }: BoardViewProps) => (
             className="!rounded-xl !border !border-border !shadow-(--shadow-panel)"
           />
         </ReactFlow>
-        {props.isEmpty && <EmptyState />}
+        {props.isEmpty && (
+          <Stack
+            align="center"
+            justify="center"
+            className="pointer-events-none absolute inset-0"
+            testId="empty-state"
+          >
+            <Text variant="title" className="text-muted-foreground">
+              Drop images or videos
+            </Text>
+          </Stack>
+        )}
+        <BottomBar {...props} />
       </Box>
     </ContextMenuTrigger>
     <BoardMenuContent menu={props.menu} />
-
-    <Dialog
-      open={props.viewerItem !== null}
-      onOpenChange={(open) => {
-        if (!open) props.onCloseViewer()
-      }}
-      title={props.viewerItem?.title ?? ''}
-      size="full"
-      testId="viewer"
-    >
-      {props.viewerItem !== null && (
-        <Box className="min-h-0 flex-1 overflow-hidden rounded-lg bg-mint-950">
-          {props.viewerItem.kind === 'video' ? (
-            <MediaVideo src={mediaUrlOf(props.viewerItem.media)} fit="contain" controls autoPlay />
-          ) : (
-            <MediaImage
-              src={mediaUrlOf(props.viewerItem.media)}
-              alt={props.viewerItem.title}
-              fit="contain"
-            />
-          )}
-        </Box>
-      )}
-    </Dialog>
-
+    <Viewer item={props.viewerItem} onClose={props.onCloseViewer} />
+    <Details item={props.detailsItem} onClose={props.onCloseDetails} />
     <UrlImportDialog
       open={props.urlDialogOpen}
       onOpenChange={props.onUrlDialogOpenChange}

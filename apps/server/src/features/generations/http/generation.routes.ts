@@ -3,6 +3,7 @@ import {
   CreateGenerationSchema,
   FailGenerationSchema,
   ListGenerationsSchema,
+  UpdateGenerationSchema,
 } from '@inspiratio/shared'
 import { pathId, withBody, withRequest } from '../../../shared/http/handlers.ts'
 import type { Route } from '../../../shared/http/http.types.ts'
@@ -40,6 +41,23 @@ export const generationRoutes = (params: {
         run: ({ body, request }) =>
           commands.create({ input: body, traceId: request.trace.traceId }),
         onOk: created,
+      }),
+    },
+    {
+      method: 'patch',
+      path: '/api/generations/:id',
+      handler: withBody({
+        schema: UpdateGenerationSchema,
+        run: ({ body, request }) => commands.update({ id: pathId(request), patch: body }),
+        onOk: noContent,
+      }),
+    },
+    {
+      method: 'post',
+      path: '/api/generations/:id/submit',
+      handler: withRequest({
+        run: (request) => commands.submit({ id: pathId(request), traceId: request.trace.traceId }),
+        onOk: (submitted) => json({ id: submitted.id }),
       }),
     },
     {

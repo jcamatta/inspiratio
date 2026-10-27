@@ -142,6 +142,14 @@ export const itemRoutes = (params: {
       }),
     },
     {
+      method: 'post',
+      path: '/api/items/:id/restore',
+      handler: withRequest({
+        run: (request) => commands.restore({ id: pathId(request) }),
+        onOk: noContent,
+      }),
+    },
+    {
       method: 'delete',
       path: '/api/items/:id',
       handler: withRequest({

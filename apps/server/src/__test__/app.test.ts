@@ -331,4 +331,99 @@ describe('HTTP API (integration)', () => {
       size: { width: 320, height: 180 },
     })
   })
+
+  it('keeps prompt cards as drafts until they are submitted', async () => {
+    const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/r.png': { body: PNG } })
+    const { app } = createTestApp({ fetch: fetchFn })
+    const { ids } = await upload({ app })
+    const created = await request(app)
+      .post('/api/generations')
+      .send({ submit: false, position: { x: 500, y: 40 }, referenceItemIds: ids })
+    expect(created.status).toBe(201)
+    const id = (created.body as { id: string }).id
+    expect((await request(app).get('/api/generations?status=pending')).body).toHaveLength(0)
+    expect((await request(app).post(`/api/generations/${id}/submit`)).status).toBe(400)
+    expect(
+      (
+        await request(app)
+          .post(`/api/generations/${id}/complete`)
+          .send({ results: [{ source: { url: 'https://cdn.higgsfield.ai/r.png' }, model: 'm' }] })
+      ).status,
+    ).toBe(409)
+    expect(
+      (
+        await request(app)
+          .patch(`/api/generations/${id}`)
+          .send({ prompt: 'Storm like @1', model: 'nano_banana_pro' })
+      ).status,
+    ).toBe(204)
+    expect(
+      (
+        await request(app)
+          .patch(`/api/generations/${id}`)
+          .send({ referenceItemIds: ['itm_x'] })
+      ).status,
+    ).toBe(404)
+    expect((await request(app).patch('/api/generations/gen_x').send({ prompt: 'x' })).status).toBe(
+      404,
+    )
+    const trace = startTrace()
+    const submitted = await request(app)
+      .post(`/api/generations/${id}/submit`)
+      .set('traceparent', formatTraceparent(trace))
+    expect(submitted.body).toEqual({ id })
+    const details = (await request(app).get(`/api/generations/${id}`)).body as GenerationDetails
+    expect(details).toMatchObject({
+      status: 'pending',
+      traceId: trace.traceId,
+      position: { x: 500, y: 40 },
+      prompt: 'Storm like @1',
+    })
+    expect(
+      (await request(app).patch(`/api/generations/${id}`).send({ prompt: 'late' })).status,
+    ).toBe(409)
+    expect(
+      (
+        await request(app)
+          .patch(`/api/generations/${id}`)
+          .send({ position: { x: 1, y: 1 } })
+      ).status,
+    ).toBe(204)
+    await request(app)
+      .post(`/api/generations/${id}/complete`)
+      .send({ results: [{ source: { url: 'https://cdn.higgsfield.ai/r.png' }, model: 'm' }] })
+    const result = (await board(app)).items.find((item) => item.metadata.origin === 'generated')
+    expect(result?.position).toEqual({ x: 389, y: 1 })
+    expect((await request(app).post('/api/generations/gen_x/submit')).status).toBe(404)
+  })
+
+  it('places API-created requests next to their references and rejects missing ones on submit', async () => {
+    const { app } = createTestApp()
+    const { ids } = await upload({ app })
+    const id = (
+      (
+        await request(app)
+          .post('/api/generations')
+          .send({ submit: false, prompt: 'x', referenceItemIds: ids })
+      ).body as { id: string }
+    ).id
+    expect(
+      ((await request(app).get(`/api/generations/${id}`)).body as GenerationDetails).position,
+    ).toEqual({ x: 378, y: 20 })
+    await request(app).delete(`/api/items/${ids[0] ?? ''}`)
+    expect((await request(app).post(`/api/generations/${id}/submit`)).status).toBe(404)
+    expect((await request(app).post('/api/generations').send({ prompt: '' })).status).toBe(400)
+  })
+
+  it('restores deleted items from the trash', async () => {
+    const { app, storage } = createTestApp()
+    const { ids } = await upload({ app })
+    const id = ids[0] ?? ''
+    await request(app).delete(`/api/items/${id}`)
+    expect(storage.files.has(`${id}.png`)).toBe(false)
+    expect((await request(app).post(`/api/items/${id}/restore`)).status).toBe(204)
+    expect(storage.files.has(`${id}.png`)).toBe(true)
+    expect((await board(app)).items.map((item) => item.id)).toEqual([id])
+    expect((await request(app).post(`/api/items/${id}/restore`)).status).toBe(404)
+  })
 })

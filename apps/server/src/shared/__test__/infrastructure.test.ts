@@ -269,6 +269,9 @@ describe('media', () => {
     await storage.moveToTrash('a.png')
     await storage.moveToTrash('missing.png')
     expect(await readdir(join(dir, 'trash'))).toHaveLength(1)
+    await storage.restoreFromTrash('a.png')
+    await storage.restoreFromTrash('missing.png')
+    expect(await readdir(join(dir, 'media'))).toEqual(['a.png'])
   })
 
   it('reads local files with validation', async () => {

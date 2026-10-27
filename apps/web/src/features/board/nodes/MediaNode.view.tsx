@@ -1,45 +1,39 @@
 import { mediaUrlOf, SYSTEM_TAGS } from '@inspiratio/shared'
-import { NodeResizer, NodeToolbar, Position } from '@xyflow/react'
-import { Expand, Focus, GripVertical, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react'
-import type { DragEvent, KeyboardEvent } from 'react'
+import { NodeResizer } from '@xyflow/react'
+import { Plus, Sparkles } from 'lucide-react'
+import type { KeyboardEvent } from 'react'
 import { cx } from '../../../shared/lib/cx.ts'
 import {
   Box,
-  Button,
   IconButton,
   MediaImage,
-  Panel,
   Stack,
   TagChip,
   Text,
   TextField,
-  Tooltip,
 } from '../../../shared/ui/index.ts'
+import { TagPicker } from '../../tags/TagPicker.controller.tsx'
 import type { MediaNodeData } from '../domain/flow-mapping.ts'
 import { VideoPlayer } from './VideoPlayer.controller.tsx'
 
 export type MediaNodeViewProps = {
   readonly data: MediaNodeData
   readonly selected: boolean
-  readonly dragging: boolean
   readonly editingTitle: boolean
+  readonly editingTags: boolean
   readonly draftTitle: string
   readonly onDraftTitleChange: (title: string) => void
-  readonly onStartEditing: () => void
+  readonly onStartEditingTitle: () => void
   readonly onCommitTitle: () => void
   readonly onCancelEditing: () => void
-  readonly onDragToPrompt: (event: DragEvent) => void
-  readonly onAddToPrompt: () => void
-  readonly onView: () => void
-  readonly onFocus: () => void
-  readonly onDelete: () => void
+  readonly onStartEditingTags: () => void
+  readonly onTagsChange: (tagIds: string[]) => void
+  readonly onRemoveTag: (tagId: string) => void
   readonly onDimensions: (size: { readonly width: number; readonly height: number }) => void
 }
 
-const MAX_CHIPS = 4
-
 export const MediaNodeView = (props: MediaNodeViewProps) => {
-  const { item, tags, dimmed, referenceLabel } = props.data
+  const { item, tags, allTags, referenceLabels } = props.data
   const isGenerated = tags.some((tag) => tag.name === SYSTEM_TAGS.aiGenerated)
   const onTitleKey = (event: KeyboardEvent) => {
     if (event.key === 'Enter') props.onCommitTitle()
@@ -48,64 +42,15 @@ export const MediaNodeView = (props: MediaNodeViewProps) => {
   return (
     <Box
       testId={`media-node-${item.id}`}
-      data-kind={item.kind}
-      className={cx('relative size-full transition-opacity', dimmed && 'opacity-20')}
+      data-selected={props.selected}
+      className="relative size-full"
+      onDoubleClick={props.onStartEditingTitle}
     >
       <NodeResizer isVisible={props.selected} keepAspectRatio minWidth={48} minHeight={48} />
-      <NodeToolbar
-        isVisible={props.selected && !props.dragging}
-        position={Position.Top}
-        offset={10}
-      >
-        <Panel className="flex items-center gap-0.5 p-1">
-          <Tooltip label="Drag into the prompt">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={GripVertical}
-              draggable
-              onDragStart={props.onDragToPrompt}
-              className="nodrag cursor-grab"
-              testId="node-drag-to-prompt"
-              aria-label="Drag into the prompt"
-            />
-          </Tooltip>
-          <IconButton
-            icon={MessageSquarePlus}
-            label="Add to prompt"
-            size="sm"
-            onClick={props.onAddToPrompt}
-            testId="node-add-to-prompt"
-          />
-          <IconButton
-            icon={Expand}
-            label="View full size"
-            size="sm"
-            onClick={props.onView}
-            testId="node-view"
-          />
-          <IconButton
-            icon={Focus}
-            label="Zoom to fit"
-            size="sm"
-            onClick={props.onFocus}
-            testId="node-focus"
-          />
-          <IconButton
-            icon={Trash2}
-            label="Delete"
-            size="sm"
-            onClick={props.onDelete}
-            testId="node-delete"
-            className="text-danger"
-          />
-        </Panel>
-      </NodeToolbar>
-
       <Box
         className={cx(
-          'size-full overflow-hidden rounded-md bg-surface shadow-sm ring-1 ring-mint-950/5',
-          props.selected && 'ring-2 ring-mint-700',
+          'size-full overflow-hidden rounded-md bg-surface shadow-sm transition-shadow',
+          props.selected ? 'outline-3 outline-offset-3 outline-mint-700' : 'ring-1 ring-mint-950/5',
         )}
       >
         {item.kind === 'video' ? (
@@ -119,20 +64,17 @@ export const MediaNodeView = (props: MediaNodeViewProps) => {
         )}
       </Box>
 
-      {referenceLabel !== null && (
+      {referenceLabels.length > 0 && (
         <Text
           testId="reference-label"
           className="absolute top-1.5 left-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-primary-foreground shadow"
         >
-          {referenceLabel}
+          {referenceLabels.join(' ')}
         </Text>
       )}
       {isGenerated && (
-        <Box
-          className="absolute top-1.5 right-1.5 rounded-md bg-accent p-1 text-accent-foreground shadow"
-          title="AI generated"
-        >
-          <Sparkles size={12} />
+        <Box className="absolute top-1.5 right-1.5 rounded-md bg-accent p-1 text-accent-foreground shadow">
+          <Sparkles size={12} aria-label="AI generated" />
         </Box>
       )}
 
@@ -150,29 +92,44 @@ export const MediaNodeView = (props: MediaNodeViewProps) => {
             aria-label="Title"
           />
         ) : (
-          <Text
-            variant="label"
-            truncate
-            testId="node-title"
-            className="cursor-text text-foreground/80"
-            onDoubleClick={props.onStartEditing}
-            title="Double-click to rename"
-          >
+          <Text variant="label" truncate testId="node-title" className="text-foreground/80">
             {item.title}
           </Text>
         )}
-        {tags.length > 0 && (
-          <Stack direction="row" gap={1} wrap>
-            {tags.slice(0, MAX_CHIPS).map((tag) => (
+        {props.editingTags ? (
+          <Box className="nodrag nowheel">
+            <TagPicker
+              tags={allTags}
+              value={item.tagIds}
+              onChange={props.onTagsChange}
+              autoFocus
+              onEscape={props.onCancelEditing}
+              testId="node-tag-picker"
+            />
+          </Box>
+        ) : (
+          <Stack direction="row" gap={1} wrap align="center">
+            {tags.map((tag) => (
               <TagChip
                 key={tag.id}
                 name={tag.name}
                 color={tag.color}
                 system={tag.system}
                 size="xs"
+                testId={`node-tag-${tag.name}`}
+                {...(props.selected ? { onRemove: () => props.onRemoveTag(tag.id) } : {})}
               />
             ))}
-            {tags.length > MAX_CHIPS && <Text variant="caption">+{tags.length - MAX_CHIPS}</Text>}
+            {props.selected && (
+              <IconButton
+                icon={Plus}
+                label="Add tag"
+                size="sm"
+                className="nodrag size-5"
+                onClick={props.onStartEditingTags}
+                testId="node-add-tag"
+              />
+            )}
           </Stack>
         )}
       </Stack>

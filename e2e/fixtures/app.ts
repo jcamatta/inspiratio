@@ -1,17 +1,18 @@
 import type { BoardSnapshot, GenerationRequest } from '@inspiratio/shared'
-import { expect, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { makePng, type Rgb } from './make-png.ts'
 
 export const API_URL = 'http://127.0.0.1:4329'
+
+export type PngFile = { readonly name: string; readonly base64: string }
 
 export const pngFile = (params: {
   readonly name: string
   readonly from: Rgb
   readonly to: Rgb
-}) => ({
+}): PngFile => ({
   name: params.name,
-  mimeType: 'image/png',
-  buffer: makePng({ width: 480, height: 270, from: params.from, to: params.to }),
+  base64: makePng({ width: 480, height: 270, from: params.from, to: params.to }).toString('base64'),
 })
 
 export const board = async (request: APIRequestContext): Promise<BoardSnapshot> =>
@@ -20,7 +21,6 @@ export const board = async (request: APIRequestContext): Promise<BoardSnapshot> 
 export const generations = async (request: APIRequestContext): Promise<GenerationRequest[]> =>
   (await (await request.get(`${API_URL}/api/generations`)).json()) as GenerationRequest[]
 
-/** Removes everything so each test starts from an empty canvas (files go to the e2e trash). */
 export const resetLibrary = async (request: APIRequestContext): Promise<void> => {
   const snapshot = await board(request)
   for (const item of snapshot.items) await request.delete(`${API_URL}/api/items/${item.id}`)
@@ -31,15 +31,40 @@ export const resetLibrary = async (request: APIRequestContext): Promise<void> =>
     await request.delete(`${API_URL}/api/generations/${generation.id}`)
 }
 
-export const uploadThroughToolbar = async (params: {
+/** Drops files on the canvas the way a desktop drag does (a DataTransfer with File objects). */
+export const dropFiles = async (params: {
   readonly page: Page
-  readonly files: readonly ReturnType<typeof pngFile>[]
+  readonly files: readonly PngFile[]
 }): Promise<void> => {
-  await params.page.getByTestId('file-input').setInputFiles([...params.files])
+  const transfer = await params.page.evaluateHandle((files) => {
+    const data = new DataTransfer()
+    for (const file of files) {
+      const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0))
+      data.items.add(new File([bytes], file.name, { type: 'image/png' }))
+    }
+    return data
+  }, params.files)
+  const target = params.page.getByTestId('board')
+  await target.dispatchEvent('dragover', { dataTransfer: transfer, clientX: 400, clientY: 300 })
+  await target.dispatchEvent('drop', { dataTransfer: transfer, clientX: 400, clientY: 300 })
   await expect(params.page.getByTestId('toast').filter({ hasText: 'Added' }).first()).toBeVisible()
 }
 
-export const nodeByTitle = (params: { readonly page: Page; readonly title: string }) =>
+export const nodeByTitle = (params: { readonly page: Page; readonly title: string }): Locator =>
   params.page
     .locator('[data-testid^="media-node-"]')
     .filter({ has: params.page.getByText(params.title, { exact: true }) })
+
+export const dragOnto = async (params: {
+  readonly page: Page
+  readonly source: Locator
+  readonly target: Locator
+}): Promise<void> => {
+  const from = await params.source.boundingBox()
+  const to = await params.target.boundingBox()
+  if (from === null || to === null) throw new Error('missing boxes')
+  await params.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await params.page.mouse.down()
+  await params.page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 15 })
+  await params.page.mouse.up()
+}

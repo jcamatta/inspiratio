@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { board, nodeByTitle, pngFile, resetLibrary, uploadThroughToolbar } from './fixtures/app.ts'
+import { board, dragOnto, dropFiles, nodeByTitle, pngFile, resetLibrary } from './fixtures/app.ts'
 
 test.beforeEach(async ({ page, request }) => {
   await resetLibrary(request)
   await page.goto('/')
 })
 
-test('imports references, renames, tags and filters them', async ({ page, request }) => {
+test('imports by drop, renames by double-click, tags and undoes', async ({ page, request }) => {
   await expect(page.getByTestId('empty-state')).toBeVisible()
-  await uploadThroughToolbar({
+  await dropFiles({
     page,
     files: [
       pngFile({ name: 'neon-alley.png', from: [13, 38, 29], to: [88, 252, 195] }),
@@ -16,85 +16,96 @@ test('imports references, renames, tags and filters them', async ({ page, reques
     ],
   })
   await expect(page.locator('[data-testid^="media-node-"]')).toHaveCount(2)
-  await expect(page.getByText('2 refs')).toBeVisible()
 
-  await nodeByTitle({ page, title: 'neon-alley' }).click()
-  const title = page.getByTestId('inspector-title')
-  await title.fill('Neon alley at night')
-  await title.press('Enter')
+  await nodeByTitle({ page, title: 'neon-alley' }).dblclick()
+  await page.getByTestId('node-title-input').fill('Neon alley at night')
+  await page.getByTestId('node-title-input').press('Enter')
+  const renamed = nodeByTitle({ page, title: 'Neon alley at night' })
+  await expect(renamed).toBeVisible()
+
+  await renamed.click()
+  await expect(renamed).toHaveAttribute('data-selected', 'true')
+  await expect(page.getByTestId('selection-count')).toHaveText('1 selected')
+  await renamed.getByTestId('node-add-tag').click()
+  await page.getByTestId('node-tag-picker').fill('cyberpunk')
+  await page.getByTestId('node-tag-picker').press('Enter')
+  await page.keyboard.press('Escape')
+  await expect(renamed.getByTestId('node-tag-cyberpunk')).toBeVisible()
+  await renamed.getByRole('button', { name: 'Remove cyberpunk' }).click()
+  await expect(renamed.getByTestId('node-tag-cyberpunk')).toHaveCount(0)
+
+  await page.locator('.react-flow__pane').click({ position: { x: 20, y: 20 } })
+  await page.keyboard.press('Control+z')
+  await expect(renamed.getByTestId('node-tag-cyberpunk')).toBeVisible()
+  await page.keyboard.press('Control+z')
+  await page.keyboard.press('Control+z')
+  await expect(nodeByTitle({ page, title: 'neon-alley' })).toBeVisible()
+  await page.keyboard.press('Control+Shift+z')
   await expect(nodeByTitle({ page, title: 'Neon alley at night' })).toBeVisible()
-
-  const tags = page.getByTestId('inspector').getByTestId('tag-picker')
-  await tags.fill('cyberpunk')
-  await tags.press('Enter')
-  await expect(page.getByTestId('inspector').getByTestId('chip-cyberpunk')).toBeVisible()
   await expect
-    .poll(async () => (await board(request)).tags.map((tag) => tag.name))
-    .toEqual(['cyberpunk'])
-
-  await page.getByTestId('inspector-notes').fill('Teal & orange, wet asphalt')
-  await page.getByTestId('inspector-title').click()
-  await expect
-    .poll(
-      async () =>
-        (await board(request)).items.find((item) => item.title === 'Neon alley at night')?.metadata
-          .notes,
-    )
-    .toBe('Teal & orange, wet asphalt')
-
-  const filter = page.getByTestId('filter-tags')
-  await filter.fill('cyber')
-  await filter.press('Enter')
-  await expect(nodeByTitle({ page, title: 'golden-hour' })).toHaveClass(/opacity-20/)
-  await expect(nodeByTitle({ page, title: 'Neon alley at night' })).not.toHaveClass(/opacity-20/)
+    .poll(async () => (await board(request)).items.map((item) => item.title).sort())
+    .toEqual(['Neon alley at night', 'golden-hour'])
 })
 
-test('groups references into a section by dragging and persists the layout', async ({
+test('groups references into a section and keeps them when the section is deleted', async ({
   page,
   request,
 }) => {
-  await uploadThroughToolbar({
+  await dropFiles({
     page,
     files: [pngFile({ name: 'fog.png', from: [40, 60, 70], to: [200, 220, 210] })],
   })
-  await page.getByTestId('toolbar-add-section').click()
-  await expect(page.locator('[data-testid^="section-node-"]')).toHaveCount(1)
-  await page.getByTestId('toolbar-fit').click()
-
+  await page.locator('.react-flow__pane').click({ button: 'right', position: { x: 900, y: 200 } })
+  await page.getByTestId('menu-add-section').click()
   const section = page.locator('[data-testid^="section-node-"]')
-  const node = nodeByTitle({ page, title: 'fog' })
-  const target = await section.boundingBox()
-  const source = await node.boundingBox()
-  if (target === null || source === null) throw new Error('missing boxes')
-  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 })
-  await page.mouse.up()
+  await expect(section).toHaveCount(1)
+  await page.getByTestId('fit').click()
 
+  await dragOnto({ page, source: nodeByTitle({ page, title: 'fog' }), target: section })
   await expect
     .poll(async () => (await board(request)).items[0]?.sectionId)
     .toBe((await board(request)).sections[0]?.id)
-  await page.reload()
-  await expect(page.locator('[data-testid^="section-node-"]')).toContainText('1')
 
-  await page.locator('[data-testid^="section-node-"]').getByTestId('section-title').dblclick()
+  await section.getByTestId('section-title').click({ button: 'right' })
+  await page.getByTestId('menu-rename-section').click()
   await page.getByTestId('section-title-input').fill('Act I — The city')
   await page.getByTestId('section-title-input').press('Enter')
   await expect(page.getByTestId('section-title')).toHaveText('Act I — The city')
+
+  await section.getByTestId('section-title').click({ button: 'right' })
+  await page.getByTestId('menu-delete-section').click()
+  await expect(section).toHaveCount(0)
+  await expect(nodeByTitle({ page, title: 'fog' })).toBeVisible()
+  await page.getByTestId('undo').click()
+  await expect(page.locator('[data-testid^="section-node-"]')).toHaveCount(1)
+  await expect.poll(async () => (await board(request)).items[0]?.sectionId).not.toBeNull()
 })
 
-test('opens the viewer and deletes from the context menu', async ({ page, request }) => {
-  await uploadThroughToolbar({
+test('views full size with zoom and deletes with undo from the context menu', async ({
+  page,
+  request,
+}) => {
+  await dropFiles({
     page,
     files: [pngFile({ name: 'still.png', from: [0, 0, 0], to: [255, 255, 255] })],
   })
   const node = nodeByTitle({ page, title: 'still' })
   await node.click({ button: 'right' })
   await page.getByTestId('menu-view').click()
-  await expect(page.getByTestId('viewer')).toBeVisible()
-  await page.keyboard.press('Escape')
+  const viewer = page.getByTestId('viewer')
+  await expect(viewer).toBeVisible()
+  await page.getByTestId('viewer-stage').hover()
+  await page.mouse.wheel(0, -500)
+  await expect(page.getByTestId('viewer-zoom')).not.toHaveText('100%')
+  await page.getByTestId('viewer-reset').click()
+  await expect(page.getByTestId('viewer-zoom')).toHaveText('100%')
+  await page.getByTestId('dialog-close').click()
+  await expect(viewer).toHaveCount(0)
+
   await node.click({ button: 'right' })
   await page.getByTestId('menu-delete').click()
   await expect(page.locator('[data-testid^="media-node-"]')).toHaveCount(0)
-  await expect.poll(async () => (await board(request)).items.length).toBe(0)
+  await page.getByTestId('undo').click()
+  await expect(page.locator('[data-testid^="media-node-"]')).toHaveCount(1)
+  await expect.poll(async () => (await board(request)).items.length).toBe(1)
 })

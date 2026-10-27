@@ -13,6 +13,7 @@ export type MediaStorage = {
   readonly absolutePathOf: (fileName: string) => string
   /** Files are never hard-deleted: they move to a trash folder the user can empty. */
   readonly moveToTrash: (fileName: string) => Promise<void>
+  readonly restoreFromTrash: (fileName: string) => Promise<void>
 }
 
 export const createFsMediaStorage = async (params: {
@@ -31,7 +32,12 @@ export const createFsMediaStorage = async (params: {
     moveToTrash: async (fileName) => {
       const source = absolutePathOf(fileName)
       if (!existsSync(source)) return
-      await rename(source, join(params.trashDir, `${Date.now()}-${basename(fileName)}`))
+      await rename(source, join(params.trashDir, basename(fileName)))
+    },
+    restoreFromTrash: async (fileName) => {
+      const source = join(params.trashDir, basename(fileName))
+      if (!existsSync(source)) return
+      await rename(source, absolutePathOf(fileName))
     },
   }
 }
@@ -42,6 +48,7 @@ export const createMemoryMediaStorage = (): MediaStorage & {
 } => {
   const files = new Map<string, Uint8Array>()
   const trashed: string[] = []
+  const trash = new Map<string, Uint8Array>()
   return {
     directory: '/memory/media',
     files,
@@ -52,8 +59,16 @@ export const createMemoryMediaStorage = (): MediaStorage & {
       return Promise.resolve()
     },
     moveToTrash: (fileName) => {
+      const bytes = files.get(fileName)
       files.delete(fileName)
       trashed.push(fileName)
+      if (bytes !== undefined) trash.set(fileName, bytes)
+      return Promise.resolve()
+    },
+    restoreFromTrash: (fileName) => {
+      const bytes = trash.get(fileName)
+      if (bytes !== undefined) files.set(fileName, bytes)
+      trash.delete(fileName)
       return Promise.resolve()
     },
   }

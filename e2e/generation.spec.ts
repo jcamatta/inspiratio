@@ -8,11 +8,12 @@ import { join, resolve } from 'node:path'
 import {
   API_URL,
   board,
+  dragOnto,
+  dropFiles,
   generations,
   nodeByTitle,
   pngFile,
   resetLibrary,
-  uploadThroughToolbar,
 } from './fixtures/app.ts'
 import { makePng } from './fixtures/make-png.ts'
 
@@ -51,7 +52,7 @@ test('queues a prompt with references, fulfils it through the MCP and lands the 
   page,
   request,
 }) => {
-  await uploadThroughToolbar({
+  await dropFiles({
     page,
     files: [
       pngFile({ name: 'location.png', from: [10, 20, 40], to: [60, 200, 255] }),
@@ -59,20 +60,25 @@ test('queues a prompt with references, fulfils it through the MCP and lands the 
     ],
   })
 
-  // Build the prompt: right-click → Create image… then drag the second reference into the prompt.
+  // Right-click → Generate image creates a prompt card; dragging another image onto it adds a reference.
   await nodeByTitle({ page, title: 'location' }).click({ button: 'right' })
   await page.getByTestId('menu-generate-image').click()
-  await expect(page.getByTestId('composer-reference')).toHaveCount(1)
-  await nodeByTitle({ page, title: 'lighting' }).click()
-  await page.getByTestId('node-drag-to-prompt').dragTo(page.getByTestId('composer-prompt'))
-  await expect(page.getByTestId('composer-reference')).toHaveCount(2)
-  const prompt = page.getByTestId('composer-prompt')
-  await expect(prompt).toHaveValue(/@1 .*@2/)
-  await prompt.fill('Wide night exterior of @1, lit like @2, anamorphic 2.39:1, light rain')
-  await page.getByTestId('composer-aspect').click()
+  const card = page.locator('[data-testid^="prompt-node-"]')
+  await expect(card.getByTestId('prompt-reference')).toHaveCount(1)
+  await page.getByTestId('fit').click()
+  await dragOnto({
+    page,
+    source: nodeByTitle({ page, title: 'lighting' }),
+    target: card.getByTestId('prompt-dropzone'),
+  })
+  await expect(card.getByTestId('prompt-reference')).toHaveCount(2)
+  const brief = card.getByTestId('prompt-brief')
+  await expect(brief).toHaveValue(/@1 .*@2/)
+  await brief.fill('Wide night exterior of @1, lit like @2, anamorphic 2.39:1, light rain')
+  await card.getByTestId('prompt-aspect').click()
   await page.getByRole('option', { name: '21:9' }).click()
-  await page.getByTestId('composer-submit').click()
-  await expect(page.getByTestId('queue-item')).toHaveAttribute('data-status', 'pending')
+  await card.getByTestId('prompt-generate').click()
+  await expect(card).toHaveAttribute('data-status', 'pending')
 
   // Claude Code side: discover, start and complete the request through the Inspiratio MCP.
   const mcp = await connectMcp()
@@ -98,7 +104,7 @@ test('queues a prompt with references, fulfils it through the MCP and lands the 
     await readFile(details.request.resolvedReferences[0]?.absolutePath ?? '')
 
     await mcp.callTool({ name: 'start_generation', arguments: { id } })
-    await expect(page.getByTestId('queue-item')).toHaveAttribute('data-status', 'in_progress')
+    await expect(card).toHaveAttribute('data-status', 'in_progress')
 
     const output = join(await mkdtemp(join(tmpdir(), 'inspiratio-e2e-')), 'result.png')
     await writeFile(
@@ -117,9 +123,8 @@ test('queues a prompt with references, fulfils it through the MCP and lands the 
   }
 
   // The result appears on the canvas, tagged and carrying its prompt.
-  await expect(page.getByTestId('queue-item')).toHaveAttribute('data-status', 'completed', {
-    timeout: 15_000,
-  })
+  await expect(card).toHaveAttribute('data-status', 'completed', { timeout: 15_000 })
+  await expect(page.getByTestId('toast').filter({ hasText: 'Generation finished' })).toBeVisible()
   await expect(page.locator('[data-testid^="media-node-"]')).toHaveCount(3)
   const snapshot = await board(request)
   const result = snapshot.items.find((item) => item.metadata.origin === 'generated')
@@ -133,10 +138,10 @@ test('queues a prompt with references, fulfils it through the MCP and lands the 
     'model:nano_banana_pro',
   ])
 
-  await page.getByTestId(`media-node-${result?.id ?? ''}`).click()
-  await page.getByTestId('tab-inspector').click()
-  await expect(page.getByTestId('inspector-model')).toHaveText('higgsfield · nano_banana_pro')
-  await expect(page.getByTestId('inspector-prompt')).toContainText('lit like @2')
+  await page.getByTestId(`media-node-${result?.id ?? ''}`).click({ button: 'right' })
+  await page.getByTestId('menu-details').click()
+  await expect(page.getByTestId('details-model')).toHaveText('higgsfield · nano_banana_pro')
+  await expect(page.getByTestId('details-prompt')).toContainText('lit like @2')
 
   // One trace links the browser click, the backend and the MCP calls.
   const [request0] = await generations(request)

@@ -11,6 +11,8 @@ export type TagPickerProps = {
   readonly creatable?: boolean
   readonly placeholder?: string
   readonly testId?: string
+  readonly autoFocus?: boolean
+  readonly onEscape?: () => void
 }
 
 /** Global tag combobox: pick existing tags or create new ones inline (multi-select). */
@@ -21,6 +23,8 @@ export const TagPicker = ({
   creatable = true,
   placeholder = 'Add tags…',
   testId = 'tag-picker',
+  autoFocus = false,
+  onEscape,
 }: TagPickerProps) => {
   const commands = useBoardCommands()
   const [inputValue, setInputValue] = useState('')
@@ -52,6 +56,8 @@ export const TagPicker = ({
       labelOf={(id) => labelFor({ tags, id })}
       placeholder={placeholder}
       testId={testId}
+      autoFocus={autoFocus}
+      onEscape={onEscape}
     />
   )
 }

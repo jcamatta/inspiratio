@@ -1,6 +1,6 @@
 import { ContextMenu as BaseContextMenu } from '@base-ui/react/context-menu'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
-import type { LucideIcon } from 'lucide-react'
+import { X, type LucideIcon } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
 import { cx } from '../lib/cx.ts'
 
@@ -107,7 +107,16 @@ export const Dialog = ({
             : 'h-[calc(100vh-48px)] w-[calc(100vw-48px)]',
         )}
       >
-        <BaseDialog.Title className="text-sm font-semibold">{title}</BaseDialog.Title>
+        <div className="flex items-center justify-between gap-3">
+          <BaseDialog.Title className="truncate text-sm font-semibold">{title}</BaseDialog.Title>
+          <BaseDialog.Close
+            aria-label="Close"
+            data-testid="dialog-close"
+            className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-foreground transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-input"
+          >
+            <X size={16} strokeWidth={1.75} aria-hidden />
+          </BaseDialog.Close>
+        </div>
         {description !== undefined && (
           <BaseDialog.Description className="text-xs text-muted-foreground">
             {description}

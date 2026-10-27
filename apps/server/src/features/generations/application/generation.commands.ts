@@ -8,6 +8,7 @@ import {
   type GenerationResult,
   type GenerationStatus,
   type Result,
+  type UpdateGenerationInput,
 } from '@inspiratio/shared'
 import { findById, removeById, upsert } from '../../../shared/lib/collections.ts'
 import { fetchRemoteMedia } from '../../../shared/media/remote-media.ts'
@@ -20,27 +21,57 @@ import {
   PLACEMENT_GAP,
 } from '../../items/domain/item.ts'
 import { generatedTagNames } from '../../tags/domain/tag.ts'
-import { createGenerationRequest, resultPosition, transition } from '../domain/generation.ts'
+import {
+  CARD_SIZE,
+  createGenerationRequest,
+  resultPosition,
+  transition,
+  updateDraft,
+} from '../domain/generation.ts'
 
 export const createGenerationCommands = (deps: ItemDeps) => {
+  const missingItem = (itemIds: readonly string[]): string | undefined => {
+    const items = deps.store.read().items
+    return itemIds.find((id) => findById({ list: items, id }) === undefined)
+  }
+
+  const save = async (request: GenerationRequest): Promise<void> => {
+    await deps.store.update((state) => ({
+      ...state,
+      generations: upsert({ list: state.generations, entity: request }),
+    }))
+  }
+
   const create = async (params: {
     readonly input: CreateGenerationCommand
     readonly traceId: string
   }): Promise<Result<{ readonly id: string }>> => {
-    const items = deps.store.read().items
-    const missing = params.input.referenceItemIds.find(
-      (id) => findById({ list: items, id }) === undefined,
-    )
+    const missing = missingItem(params.input.referenceItemIds)
     if (missing !== undefined) return notFound({ entity: 'Item', id: missing })
+    const state = deps.store.read()
+    const anchors = params.input.referenceItemIds.flatMap((id) => {
+      const item = findById({ list: state.items, id })
+      return item === undefined
+        ? []
+        : [{ position: absolutePositionOf({ item, sections: state.sections }), size: item.size }]
+    })
     const request = createGenerationRequest({
       id: deps.newId({ prefix: 'gen' }),
       now: deps.clock(),
       traceId: params.traceId,
+      position:
+        params.input.position ??
+        resultPosition({
+          anchors,
+          fallback: nextFreePosition(state.items),
+          index: 0,
+          slotHeight: 0,
+        }),
       input: params.input,
     })
-    await deps.store.update((state) => ({ ...state, generations: [...state.generations, request] }))
+    await save(request)
     deps.logger.info({
-      msg: 'generation.requested',
+      msg: request.status === 'draft' ? 'generation.drafted' : 'generation.requested',
       generationId: request.id,
       kind: request.kind,
       model: request.model,
@@ -49,26 +80,53 @@ export const createGenerationCommands = (deps: ItemDeps) => {
     return ok({ id: request.id })
   }
 
+  const update = async (params: {
+    readonly id: string
+    readonly patch: UpdateGenerationInput
+  }): Promise<Result<undefined>> => {
+    const request = findById({ list: deps.store.read().generations, id: params.id })
+    if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
+    const missing = missingItem(params.patch.referenceItemIds ?? [])
+    if (missing !== undefined) return notFound({ entity: 'Item', id: missing })
+    const next = updateDraft({ request, patch: params.patch, now: deps.clock() })
+    if (!next.ok) return next
+    await save(next.value)
+    return ok(undefined)
+  }
+
   const move = async (params: {
     readonly id: string
     readonly to: GenerationStatus
     readonly error?: string
     readonly resultItemIds?: readonly string[]
+    readonly traceId?: string
   }): Promise<Result<GenerationRequest>> => {
     const request = findById({ list: deps.store.read().generations, id: params.id })
     if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
     const next = transition({ ...params, request, now: deps.clock() })
     if (!next.ok) return next
-    await deps.store.update((state) => ({
-      ...state,
-      generations: upsert({ list: state.generations, entity: next.value }),
-    }))
+    const entity =
+      params.traceId === undefined ? next.value : { ...next.value, traceId: params.traceId }
+    await save(entity)
     deps.logger.info({
       msg: 'generation.status_changed',
       generationId: params.id,
       status: params.to,
     })
-    return next
+    return ok(entity)
+  }
+
+  const submit = async (params: {
+    readonly id: string
+    readonly traceId: string
+  }): Promise<Result<GenerationRequest>> => {
+    const request = findById({ list: deps.store.read().generations, id: params.id })
+    if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
+    if (request.prompt.trim() === '')
+      return err({ code: 'validation', message: 'Write a prompt before generating' })
+    const missing = missingItem(request.references.map((reference) => reference.itemId))
+    if (missing !== undefined) return notFound({ entity: 'Item', id: missing })
+    return move({ id: params.id, to: 'pending', traceId: params.traceId })
   }
 
   const bytesOf = async (result: GenerationResult): Promise<Result<Uint8Array>> => {
@@ -84,10 +142,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
     return deps.readFile({ filePath: result.source.filePath, maxBytes: deps.maxImportBytes })
   }
 
-  /**
-   * Imports the generated files into the library next to their references, tagged as AI
-   * output with provider + model, and carrying the prompt as metadata.
-   */
+  /** Results land to the right of their prompt card, tagged with provider and model. */
   const complete = async (params: {
     readonly id: string
     readonly input: CompleteGenerationCommand
@@ -95,19 +150,13 @@ export const createGenerationCommands = (deps: ItemDeps) => {
     const state = deps.store.read()
     const request = findById({ list: state.generations, id: params.id })
     if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
-    if (request.status === 'completed' || request.status === 'failed')
+    if (request.status !== 'pending' && request.status !== 'in_progress')
       return err({
         code: 'invalid_state',
         message: `Generation ${request.id} is ${request.status}`,
       })
 
-    const anchors = request.references.flatMap((reference) => {
-      const item = findById({ list: state.items, id: reference.itemId })
-      return item === undefined
-        ? []
-        : [{ position: absolutePositionOf({ item, sections: state.sections }), size: item.size }]
-    })
-    const fallback = nextFreePosition(state.items)
+    const anchors = [{ position: request.position, size: CARD_SIZE }]
     const ids: string[] = []
     const failures: string[] = []
 
@@ -124,7 +173,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
               title: result.title ?? `${result.model} · ${request.prompt.slice(0, 60)}`,
               position: resultPosition({
                 anchors,
-                fallback,
+                fallback: request.position,
                 index,
                 slotHeight: INITIAL_EDGE + PLACEMENT_GAP,
               }),
@@ -172,7 +221,7 @@ export const createGenerationCommands = (deps: ItemDeps) => {
     return ok(undefined)
   }
 
-  return { create, start, complete, fail, retry, remove }
+  return { create, update, submit, start, complete, fail, retry, remove }
 }
 
 export type GenerationCommands = ReturnType<typeof createGenerationCommands>

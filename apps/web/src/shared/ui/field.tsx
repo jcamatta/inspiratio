@@ -2,6 +2,8 @@ import { Field as BaseField } from '@base-ui/react/field'
 import { Input as BaseInput } from '@base-ui/react/input'
 import type { ComponentProps, ReactNode } from 'react'
 import { cx } from '../lib/cx.ts'
+import { ScrollArea } from './controls.tsx'
+import { Box } from './layout.tsx'
 
 const CONTROL =
   'w-full rounded-lg border border-border-strong bg-panel px-2.5 text-sm text-foreground placeholder:text-muted-foreground/70 transition outline-none focus:border-input focus:ring-2 focus:ring-primary/40'
@@ -40,56 +42,42 @@ export type TextAreaProps = {
   readonly onValueChange: (value: string) => void
   readonly label?: ReactNode
   readonly placeholder?: string
-  readonly rows?: number
   readonly className?: string
   readonly testId?: string
-  readonly onDrop?: ComponentProps<'textarea'>['onDrop']
-  readonly onDragOver?: ComponentProps<'textarea'>['onDragOver']
   readonly onKeyDown?: ComponentProps<'textarea'>['onKeyDown']
   readonly onBlur?: () => void
-  readonly highlighted?: boolean
+  readonly disabled?: boolean
 }
 
-/** Multi-line input: a Base UI Input rendered as a textarea. */
+/** Grows with its content; past the max height it scrolls inside a Base UI ScrollArea. */
 export const TextArea = ({
   value,
   onValueChange,
   label,
   placeholder,
-  rows = 4,
   className,
   testId,
-  onDrop,
-  onDragOver,
   onKeyDown,
   onBlur,
-  highlighted = false,
+  disabled = false,
 }: TextAreaProps) => (
-  <BaseField.Root className={cx('flex flex-col gap-1', className)}>
+  <BaseField.Root className={cx('flex flex-col gap-1', className)} disabled={disabled}>
     {label !== undefined && (
       <BaseField.Label className="text-xs font-medium text-muted-foreground">
         {label}
       </BaseField.Label>
     )}
-    <BaseInput
-      value={value}
-      onValueChange={onValueChange}
-      placeholder={placeholder}
-      onBlur={onBlur}
-      render={
-        <textarea
-          rows={rows}
-          data-testid={testId}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onKeyDown={onKeyDown}
+    <Box className="rounded-lg border border-border-strong bg-panel transition focus-within:border-input focus-within:ring-2 focus-within:ring-primary/40">
+      <ScrollArea className="nowheel max-h-48">
+        <BaseInput
+          value={value}
+          onValueChange={onValueChange}
+          placeholder={placeholder}
+          onBlur={onBlur}
+          render={<textarea rows={3} data-testid={testId} onKeyDown={onKeyDown} />}
+          className="block [field-sizing:content] min-h-20 w-full resize-none overflow-hidden bg-transparent px-2.5 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 data-[disabled]:opacity-60"
         />
-      }
-      className={cx(
-        CONTROL,
-        'resize-none py-2 leading-relaxed',
-        highlighted && 'border-input ring-2 ring-primary/60',
-      )}
-    />
+      </ScrollArea>
+    </Box>
   </BaseField.Root>
 )

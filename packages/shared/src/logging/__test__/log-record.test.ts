@@ -38,6 +38,7 @@ describe('shared contracts helpers', () => {
       tags: [],
       sections: [],
       generations: [],
+      trash: [],
     })
   })
 

@@ -38,7 +38,8 @@ export const SectionNodeView = (props: SectionNodeViewProps) => {
       className={cx(
         'size-full rounded-xl border-2 border-dashed transition-colors',
         FRAME[section.color],
-        props.selected && 'border-solid border-mint-700',
+        props.selected &&
+          'border-solid border-mint-700 outline-3 outline-offset-3 outline-mint-700',
       )}
     >
       <NodeResizer isVisible={props.selected} minWidth={200} minHeight={140} />

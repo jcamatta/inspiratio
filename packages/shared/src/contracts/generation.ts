@@ -1,11 +1,17 @@
 import { z } from 'zod'
-import { IdSchema } from './geometry.ts'
+import { IdSchema, Vec2Schema } from './geometry.ts'
 import { ItemKindSchema } from './item.ts'
 
 export const GenerationKindSchema = ItemKindSchema
 export type GenerationKind = z.infer<typeof GenerationKindSchema>
 
-export const GENERATION_STATUSES = ['pending', 'in_progress', 'completed', 'failed'] as const
+export const GENERATION_STATUSES = [
+  'draft',
+  'pending',
+  'in_progress',
+  'completed',
+  'failed',
+] as const
 export const GenerationStatusSchema = z.enum(GENERATION_STATUSES)
 export type GenerationStatus = z.infer<typeof GenerationStatusSchema>
 
@@ -32,23 +38,45 @@ export const GenerationRequestSchema = z.object({
   updatedAt: z.string(),
   resultItemIds: z.array(IdSchema),
   error: z.string().nullable(),
+  /** Where the prompt card sits on the canvas. */
+  position: Vec2Schema.default({ x: 0, y: 0 }),
 })
 export type GenerationRequest = z.infer<typeof GenerationRequestSchema>
 
-export const CreateGenerationSchema = z.object({
-  prompt: z.string().trim().min(1).max(8000),
-  kind: GenerationKindSchema.default('image'),
-  model: z.string().trim().min(1).max(80).nullable().default(null),
-  aspectRatio: z
-    .string()
-    .regex(/^\d{1,2}:\d{1,2}$/)
-    .nullable()
-    .default(null),
-  count: z.number().int().min(1).max(4).default(1),
-  referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).default([]),
-})
+const AspectRatioSchema = z
+  .string()
+  .regex(/^\d{1,2}:\d{1,2}$/)
+  .nullable()
+
+export const CreateGenerationSchema = z
+  .object({
+    prompt: z.string().trim().max(8000).default(''),
+    kind: GenerationKindSchema.default('image'),
+    model: z.string().trim().min(1).max(80).nullable().default(null),
+    aspectRatio: AspectRatioSchema.default(null),
+    count: z.number().int().min(1).max(4).default(1),
+    referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).default([]),
+    position: Vec2Schema.optional(),
+    /** false keeps the request as an editable draft card on the canvas. */
+    submit: z.boolean().default(true),
+  })
+  .refine((input) => !input.submit || input.prompt !== '', {
+    message: 'A prompt is required to submit',
+    path: ['prompt'],
+  })
 export type CreateGenerationInput = z.input<typeof CreateGenerationSchema>
 export type CreateGenerationCommand = z.output<typeof CreateGenerationSchema>
+
+export const UpdateGenerationSchema = z.object({
+  prompt: z.string().trim().max(8000).optional(),
+  kind: GenerationKindSchema.optional(),
+  model: z.string().trim().min(1).max(80).nullable().optional(),
+  aspectRatio: AspectRatioSchema.optional(),
+  count: z.number().int().min(1).max(4).optional(),
+  referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).optional(),
+  position: Vec2Schema.optional(),
+})
+export type UpdateGenerationInput = z.infer<typeof UpdateGenerationSchema>
 
 export const GenerationResultSourceSchema = z.union([
   z.object({ url: z.url({ protocol: /^https?$/ }) }),

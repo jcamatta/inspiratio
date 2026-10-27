@@ -20,7 +20,6 @@ export const UrlImportDialogView = (props: UrlImportDialogViewProps) => {
       open={props.open}
       onOpenChange={props.onOpenChange}
       title="Import from URL"
-      description="Paste a direct image/video link or a page (Pinterest, Cosmos, film-stills…) — its preview media is downloaded."
       testId="url-dialog"
     >
       <TextField

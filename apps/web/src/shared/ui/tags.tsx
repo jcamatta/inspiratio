@@ -1,3 +1,4 @@
+import { Button as BaseButton } from '@base-ui/react/button'
 import { Combobox as BaseCombobox } from '@base-ui/react/combobox'
 import type { TagColor } from '@inspiratio/shared'
 import { Plus, Sparkles, X } from 'lucide-react'
@@ -19,9 +20,17 @@ export type TagChipProps = {
   readonly system?: boolean
   readonly size?: 'xs' | 'sm'
   readonly testId?: string
+  readonly onRemove?: () => void
 }
 
-export const TagChip = ({ name, color, system = false, size = 'sm', testId }: TagChipProps) => (
+export const TagChip = ({
+  name,
+  color,
+  system = false,
+  size = 'sm',
+  testId,
+  onRemove,
+}: TagChipProps) => (
   <span
     data-testid={testId}
     className={cx(
@@ -32,6 +41,15 @@ export const TagChip = ({ name, color, system = false, size = 'sm', testId }: Ta
   >
     {system && <Sparkles size={10} aria-label="system tag" />}
     <span className="truncate">{name}</span>
+    {onRemove !== undefined && (
+      <BaseButton
+        aria-label={`Remove ${name}`}
+        onClick={onRemove}
+        className="nodrag -mr-0.5 cursor-pointer rounded-full p-px hover:bg-black/10"
+      >
+        <X size={size === 'xs' ? 9 : 10} />
+      </BaseButton>
+    )}
   </span>
 )
 
@@ -53,6 +71,8 @@ export type ChipComboboxProps = {
   readonly labelOf: (id: string) => string
   readonly placeholder: string
   readonly testId?: string
+  readonly autoFocus?: boolean
+  readonly onEscape?: () => void
 }
 
 /** Multi-select combobox with chips (Base UI Combobox). Options are addressed by id. */
@@ -66,6 +86,8 @@ export const ChipCombobox = ({
   labelOf,
   placeholder,
   testId,
+  autoFocus = false,
+  onEscape,
 }: ChipComboboxProps) => {
   const optionOf = (id: string): ChipOption | undefined =>
     options.find((option) => option.id === id)
@@ -113,6 +135,12 @@ export const ChipCombobox = ({
         </BaseCombobox.Value>
         <BaseCombobox.Input
           data-testid={testId}
+          autoFocus={autoFocus}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventBaseUIHandler()
+            onEscape?.()
+          }}
           placeholder={value.length === 0 ? placeholder : ''}
           className="h-6 min-w-16 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground/70"
         />
@@ -121,7 +149,7 @@ export const ChipCombobox = ({
         <BaseCombobox.Positioner className="z-50" sideOffset={4}>
           <BaseCombobox.Popup className="max-h-64 w-(--anchor-width) overflow-y-auto rounded-xl border border-border bg-panel p-1 text-sm shadow-(--shadow-panel) outline-none">
             <BaseCombobox.Empty className="px-2 py-1.5 text-xs text-muted-foreground empty:hidden">
-              Type to create a tag
+              No tags
             </BaseCombobox.Empty>
             <BaseCombobox.List>
               {(id: string) => {
