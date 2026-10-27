@@ -110,6 +110,53 @@ describe('Canvas', () => {
     expect(screen.queryByTestId('node-title-input')).not.toBeInTheDocument()
   })
 
+  it('acts on the selection from the floating toolbar', async () => {
+    const api = seeded()
+    const { user } = renderWithApp({
+      ui: <AppView />,
+      api,
+      workspace: { selection: ['itm_a'] },
+    })
+    const toolbar = await screen.findByTestId('selection-toolbar')
+    await user.click(within(toolbar).getByTestId('toolbar-view'))
+    expect(await screen.findByTestId('viewer')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.click(
+      within(await screen.findByTestId('selection-toolbar')).getByTestId('toolbar-details'),
+    )
+    await user.keyboard('{Escape}')
+    await user.click(
+      within(await screen.findByTestId('selection-toolbar')).getByTestId('toolbar-generate-video'),
+    )
+    await waitFor(() => {
+      expect(api.state.generations[0]).toMatchObject({
+        kind: 'video',
+        references: [{ itemId: 'itm_a' }],
+      })
+    })
+    await user.click(
+      within(await screen.findByTestId('selection-toolbar')).getByTestId('toolbar-create-section'),
+    )
+    await waitFor(() => {
+      expect(api.state.sections).toHaveLength(2)
+      expect(item({ api, id: 'itm_a' })?.sectionId).toBe(api.state.sections[1]?.id)
+    })
+    await user.click(screen.getByTestId('undo'))
+    await waitFor(() => {
+      expect(api.state.sections).toHaveLength(1)
+      expect(item({ api, id: 'itm_a' })).toMatchObject({
+        sectionId: null,
+        position: { x: 0, y: 0 },
+      })
+    })
+    await user.click(
+      within(await screen.findByTestId('selection-toolbar')).getByTestId('toolbar-delete'),
+    )
+    await waitFor(() => {
+      expect(item({ api, id: 'itm_a' })).toBeUndefined()
+    })
+  })
+
   it('adds and removes tags on a selected image', async () => {
     const api = seeded()
     const { user } = renderWithApp({ ui: <AppView />, api, workspace: { selection: ['itm_a'] } })

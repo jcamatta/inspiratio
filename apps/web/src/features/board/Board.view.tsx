@@ -3,6 +3,8 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
+  NodeToolbar,
+  Position,
   ReactFlow,
   type NodeChange,
   type OnSelectionChangeParams,
@@ -12,6 +14,7 @@ import {
   ArrowUpToLine,
   Expand,
   Film,
+  Group,
   ImagePlus,
   Info,
   Link2,
@@ -70,6 +73,7 @@ export type BoardMenu = {
   readonly onDetach: () => void
   readonly onDelete: () => void
   readonly onNewPrompt: (kind: GenerationKind) => void
+  readonly onCreateSection: () => void
   readonly onAddSection: () => void
   readonly onImportUrl: () => void
   readonly onFitView: () => void
@@ -88,7 +92,17 @@ type BottomBarProps = {
   readonly onFitView: () => void
 }
 
+export type SelectionToolbar = {
+  readonly ids: readonly string[]
+  readonly onGenerate: (kind: GenerationKind) => void
+  readonly onCreateSection: () => void
+  readonly onView: () => void
+  readonly onDetails: () => void
+  readonly onDelete: () => void
+}
+
 export type BoardViewProps = BottomBarProps & {
+  readonly toolbar: SelectionToolbar
   readonly onWrapperElement: (element: HTMLDivElement | null) => void
   readonly nodes: BoardNode[]
   readonly isEmpty: boolean
@@ -160,6 +174,12 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
           icon={ArrowDownToLine}
           onSelect={menu.onSendToBack}
           testId="menu-back"
+        />
+        <ContextMenuItem
+          label="Create section"
+          icon={Group}
+          onSelect={menu.onCreateSection}
+          testId="menu-create-section"
         />
         {menu.targetInSection && (
           <ContextMenuItem
@@ -256,6 +276,69 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
   )
 }
 
+const SelectionToolbarView = ({ toolbar }: { readonly toolbar: SelectionToolbar }) => {
+  const single = toolbar.ids.length === 1
+  return (
+    <NodeToolbar
+      nodeId={[...toolbar.ids]}
+      isVisible={toolbar.ids.length > 0}
+      position={Position.Top}
+      offset={12}
+    >
+      <Panel className="flex items-center gap-0.5 p-1" testId="selection-toolbar">
+        <IconButton
+          icon={ImagePlus}
+          label="Generate image"
+          size="sm"
+          onClick={() => toolbar.onGenerate('image')}
+          testId="toolbar-generate-image"
+        />
+        <IconButton
+          icon={Film}
+          label="Generate video"
+          size="sm"
+          onClick={() => toolbar.onGenerate('video')}
+          testId="toolbar-generate-video"
+        />
+        <IconButton
+          icon={Group}
+          label="Create section"
+          size="sm"
+          onClick={toolbar.onCreateSection}
+          testId="toolbar-create-section"
+        />
+        {single && (
+          <>
+            <Separator orientation="vertical" />
+            <IconButton
+              icon={Expand}
+              label="View full size"
+              size="sm"
+              onClick={toolbar.onView}
+              testId="toolbar-view"
+            />
+            <IconButton
+              icon={Info}
+              label="Details"
+              size="sm"
+              onClick={toolbar.onDetails}
+              testId="toolbar-details"
+            />
+          </>
+        )}
+        <Separator orientation="vertical" />
+        <IconButton
+          icon={Trash2}
+          label="Delete"
+          size="sm"
+          onClick={toolbar.onDelete}
+          testId="toolbar-delete"
+        />
+      </Panel>
+    </NodeToolbar>
+  )
+}
+
 const BottomBar = (props: BottomBarProps) => (
   <Panel
     className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 p-1"
@@ -326,6 +409,7 @@ export const BoardView = ({ onWrapperElement, ...props }: BoardViewProps) => (
           fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} />
+          <SelectionToolbarView toolbar={props.toolbar} />
           <MiniMap
             pannable
             zoomable

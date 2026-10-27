@@ -154,6 +154,32 @@ describe('context targets', () => {
   })
 })
 
+describe('sectionAround', () => {
+  it('wraps the items with padding and places them inside', async () => {
+    const { sectionAround, SECTION_PADDING, CAPTION_ROOM } = await import('../context-target.ts')
+    const sections = [makeSection({ id: 'sec_1', position: { x: 1000, y: 1000 } })]
+    const items = [
+      makeItem({ id: 'a', position: { x: 100, y: 200 }, size: { width: 300, height: 200 } }),
+      makeItem({
+        id: 'b',
+        sectionId: 'sec_1',
+        position: { x: 10, y: 10 },
+        size: { width: 100, height: 100 },
+      }),
+      makeItem({ id: 'c', position: { x: 5000, y: 5000 } }),
+    ]
+    expect(sectionAround({ ids: ['a', 'b'], items, sections })).toEqual({
+      position: { x: 100 - SECTION_PADDING, y: 200 - SECTION_PADDING },
+      size: { width: 1010 + 2 * SECTION_PADDING, height: 910 + 2 * SECTION_PADDING + CAPTION_ROOM },
+      members: [
+        { id: 'a', position: { x: SECTION_PADDING, y: SECTION_PADDING } },
+        { id: 'b', position: { x: 910 + SECTION_PADDING, y: 810 + SECTION_PADDING } },
+      ],
+    })
+    expect(sectionAround({ ids: ['ghost'], items, sections })).toBeNull()
+  })
+})
+
 describe('formatTime', () => {
   it('formats seconds as m:ss', () => {
     expect(formatTime(0)).toBe('0:00')

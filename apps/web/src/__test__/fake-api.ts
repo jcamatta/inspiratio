@@ -259,6 +259,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         const created = makeSection({
           id: nextId('sec'),
           position: body.position as Section['position'],
+          ...(body.size === undefined ? {} : { size: body.size as Section['size'] }),
         })
         state.sections.push(created)
         return json({ body: { id: created.id }, status: 201 })

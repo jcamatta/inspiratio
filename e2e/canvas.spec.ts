@@ -109,3 +109,34 @@ test('views full size with zoom and deletes with undo from the context menu', as
   await expect(page.locator('[data-testid^="media-node-"]')).toHaveCount(1)
   await expect.poll(async () => (await board(request)).items.length).toBe(1)
 })
+
+test('creates a section around the selected images from the floating toolbar', async ({
+  page,
+  request,
+}) => {
+  await dropFiles({
+    page,
+    files: [
+      pngFile({ name: 'dawn.png', from: [250, 200, 120], to: [80, 40, 90] }),
+      pngFile({ name: 'dusk.png', from: [30, 20, 70], to: [200, 90, 60] }),
+    ],
+  })
+  await page.getByTestId('fit').click()
+  await nodeByTitle({ page, title: 'dawn' }).click()
+  await nodeByTitle({ page, title: 'dusk' }).click({ modifiers: ['Shift'] })
+  await expect(page.getByTestId('selection-count')).toHaveText('2 selected')
+  const toolbar = page.getByTestId('selection-toolbar')
+  await expect(toolbar).toBeVisible()
+  await expect(toolbar.getByTestId('toolbar-view')).toHaveCount(0)
+  await toolbar.getByTestId('toolbar-create-section').click()
+  await expect(page.locator('[data-testid^="section-node-"]')).toHaveCount(1)
+  await expect
+    .poll(async () => {
+      const snapshot = await board(request)
+      const sectionId = snapshot.sections[0]?.id
+      return snapshot.items.every((item) => item.sectionId === sectionId)
+    })
+    .toBe(true)
+  await page.getByTestId('undo').click()
+  await expect(page.locator('[data-testid^="section-node-"]')).toHaveCount(0)
+})

@@ -21,7 +21,7 @@ import { useHistory } from '../history/history.context.ts'
 import { useWorkspace } from '../workspace/workspace.context.ts'
 import { useBoardActions } from './board.actions.ts'
 import { useBoardCommands, useBoardQuery } from './board.hooks.ts'
-import { BoardView, type BoardMenu } from './Board.view.tsx'
+import { BoardView, type BoardMenu, type SelectionToolbar } from './Board.view.tsx'
 import {
   actionTargets,
   backZIndex,
@@ -217,17 +217,42 @@ export const Board = () => {
       ? actionTargets({ id: menuTarget.id, selection: state.selection })
       : []
 
-  const generateFrom = (kind: GenerationKind) => {
+  const generateFrom = (params: {
+    readonly kind: GenerationKind
+    readonly ids: readonly string[]
+  }) => {
     actions.createPrompt({
-      kind,
-      referenceItemIds: targetIds,
+      kind: params.kind,
+      referenceItemIds: params.ids,
       position: promptPlacement({
-        ids: targetIds,
+        ids: params.ids,
         items: board.items,
         prompts: requests.map((request) => request.position),
         fallback: menuTarget.position,
       }),
     })
+  }
+
+  const dragging = nodes.some((node) => node.dragging === true)
+  const toolbar: SelectionToolbar = {
+    ids: dragging || state.editing !== null ? [] : state.selection,
+    onGenerate: (kind) => {
+      generateFrom({ kind, ids: state.selection })
+    },
+    onCreateSection: () => {
+      actions.createSectionFrom(state.selection)
+    },
+    onView: () => {
+      const [id] = state.selection
+      if (id !== undefined) dispatch({ type: 'viewerOpened', itemId: id })
+    },
+    onDetails: () => {
+      const [id] = state.selection
+      if (id !== undefined) dispatch({ type: 'detailsOpened', itemId: id })
+    },
+    onDelete: () => {
+      void flow.deleteElements({ nodes: state.selection.map((id) => ({ id })) })
+    },
   }
 
   const menu: BoardMenu = {
@@ -236,7 +261,12 @@ export const Board = () => {
     targetInSection: targetIds.some(
       (id) => board.items.find((item) => item.id === id)?.sectionId !== null,
     ),
-    onGenerate: generateFrom,
+    onGenerate: (kind) => {
+      generateFrom({ kind, ids: targetIds })
+    },
+    onCreateSection: () => {
+      actions.createSectionFrom(targetIds)
+    },
     onRename: () => {
       if (menuTarget.kind === 'item')
         dispatch({ type: 'editingStarted', editing: { kind: 'title', id: menuTarget.id } })
@@ -319,6 +349,7 @@ export const Board = () => {
       }}
       onContextMenu={onContextMenu}
       menu={menu}
+      toolbar={toolbar}
       zoom={zoom}
       selectionCount={state.selection.length}
       canUndo={history.canUndo}

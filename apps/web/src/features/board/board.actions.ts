@@ -5,6 +5,7 @@ import { useGenerationCommands, useGenerationsQuery } from '../generation/genera
 import { dropReferences, removeReference } from '../generation/domain/prompt.ts'
 import { useHistory } from '../history/history.context.ts'
 import { useBoardCommands, useBoardQuery } from './board.hooks.ts'
+import { sectionAround } from './domain/context-target.ts'
 import type { PersistencePlan, SectionPatch } from './domain/flow-mapping.ts'
 import { inverseLayout, inverseSectionPatch, sectionChildren } from './domain/undo.ts'
 
@@ -191,6 +192,36 @@ export const useBoardActions = () => {
     })
   }
 
+  const createSectionFrom = (ids: readonly string[]) => {
+    const frame = sectionAround({ ids, items: board.items, sections: board.sections })
+    if (frame === null) return
+    const restore = inverseLayout({
+      changes: frame.members.map((member) => ({ ...member, sectionId: null })),
+      items: board.items,
+    })
+    let id: string | undefined
+    void perform({
+      label: 'Create section',
+      redo: async () => {
+        id = (
+          await commands.createSection({
+            input: { position: frame.position, size: frame.size },
+          })
+        )?.id
+        if (id !== undefined) {
+          const sectionId = id
+          await commands.applyLayout({
+            changes: frame.members.map((member) => ({ ...member, sectionId })),
+          })
+        }
+      },
+      undo: async () => {
+        await commands.applyLayout({ changes: restore })
+        if (id !== undefined) await commands.deleteSection({ id })
+      },
+    })
+  }
+
   const renameSection = (params: { readonly id: string; readonly title: string }) => {
     const before = board.sections.find((section) => section.id === params.id)
     if (before === undefined || params.title === '' || params.title === before.title) return
@@ -330,6 +361,7 @@ export const useBoardActions = () => {
     setZIndex,
     detach,
     createSection,
+    createSectionFrom,
     renameSection,
     deleteSection,
     createPrompt,

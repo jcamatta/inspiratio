@@ -110,3 +110,51 @@ export const promptPlacement = (params: {
   ]
   return freeSpot({ start, obstacles })
 }
+
+export const SECTION_PADDING = 40
+export const CAPTION_ROOM = 72
+
+export type SectionFrame = {
+  readonly position: Vec2
+  readonly size: { readonly width: number; readonly height: number }
+  /** Item positions relative to the new section, without the section id yet. */
+  readonly members: { readonly id: string; readonly position: Vec2 }[]
+}
+
+/** The frame a new section needs to wrap the given items, plus where each item lands inside it. */
+export const sectionAround = (params: {
+  readonly ids: readonly string[]
+  readonly items: readonly Item[]
+  readonly sections: readonly Section[]
+}): SectionFrame | null => {
+  const placed = params.items
+    .filter((item) => params.ids.includes(item.id))
+    .map((item) => {
+      const parent = params.sections.find((section) => section.id === item.sectionId)
+      const origin = parent?.position ?? { x: 0, y: 0 }
+      return {
+        item,
+        position: { x: origin.x + item.position.x, y: origin.y + item.position.y },
+      }
+    })
+  if (placed.length === 0) return null
+  const left = Math.min(...placed.map((entry) => entry.position.x)) - SECTION_PADDING
+  const top = Math.min(...placed.map((entry) => entry.position.y)) - SECTION_PADDING
+  const right =
+    Math.max(...placed.map((entry) => entry.position.x + entry.item.size.width)) + SECTION_PADDING
+  const bottom =
+    Math.max(...placed.map((entry) => entry.position.y + entry.item.size.height)) +
+    SECTION_PADDING +
+    CAPTION_ROOM
+  return {
+    position: { x: Math.round(left), y: Math.round(top) },
+    size: { width: Math.round(right - left), height: Math.round(bottom - top) },
+    members: placed.map((entry) => ({
+      id: entry.item.id,
+      position: {
+        x: entry.position.x - Math.round(left),
+        y: entry.position.y - Math.round(top),
+      },
+    })),
+  }
+}
