@@ -25,6 +25,8 @@ export const GenerationInfoSchema = z.object({
   providerPrompt: z.string().nullable().default(null),
   /** Which Generate run of the request produced this result, starting at 1. */
   run: z.number().int().min(1).default(1),
+  /** Model id whose prompt guide was used to write providerPrompt (prompt-guides/<id>.md). */
+  promptGuide: z.string().nullable().default(null),
   referenceItemIds: z.array(IdSchema),
 })
 export type GenerationInfo = z.infer<typeof GenerationInfoSchema>

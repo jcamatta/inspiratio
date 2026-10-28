@@ -17,6 +17,7 @@ const generated = {
       prompt: 'usa el estilo de @1',
       providerPrompt: 'Repaint image 2 in the style of image 1',
       run: 1,
+      promptGuide: null,
       referenceItemIds: [],
     },
   },

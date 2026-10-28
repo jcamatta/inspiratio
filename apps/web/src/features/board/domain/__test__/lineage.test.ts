@@ -17,6 +17,7 @@ const result = (params: { readonly id: string; readonly run: number }): Item => 
         prompt: 'p',
         providerPrompt: null,
         run: params.run,
+        promptGuide: null,
         referenceItemIds: ['ref_a'],
       },
     },
