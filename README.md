@@ -14,24 +14,114 @@ built-in path from references to new AI images and videos through **Claude Code 
   generates with Higgsfield and the result lands back on the canvas tagged `ai-generated`, `by:higgsfield`,
   `model:<id>`. A toast tells you when a queued generation finishes or fails.
 
-## Quick start
+## Install (macOS, Windows, Linux)
 
-Requirements: Node 22+ (tested on 24) and npm.
+Inspiratio runs on your own computer: a small local server plus a browser window. Your images never leave your
+machine unless you press **Generate**.
+
+### 1. Install the prerequisites (once)
+
+| Tool                                           | macOS                                                                                         | Windows                                                          |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Node.js 22 or newer** (includes npm)         | Download the LTS installer from [nodejs.org](https://nodejs.org) or `brew install node`       | Download the LTS installer from [nodejs.org](https://nodejs.org) |
+| **Git** (to download and get updates)          | Run `git --version` in Terminal; macOS offers to install it if missing                        | Install from [git-scm.com](https://git-scm.com/download/win)     |
+| **Google Chrome or Microsoft Edge** (optional) | Opens Inspiratio in its own app window; without it, it opens as a tab in your default browser | Edge is already installed                                        |
+
+Check it worked by opening a **new** terminal (macOS: _Terminal_ app · Windows: _PowerShell_) and running:
+
+```bash
+node --version
+```
+
+It should print `v22` or higher.
+
+### 2. Download Inspiratio
+
+The repository is private, so ask the owner to invite your GitHub account as a collaborator first. Then, in the
+terminal, go to the folder where you want the app (for example your home folder) and clone it:
+
+```bash
+git clone -b main https://github.com/jcamatta/inspiratio.git
+```
+
+```bash
+cd inspiratio
+```
+
+Git asks you to sign in to GitHub the first time. Keep this folder where it is: the desktop icon points to it.
+
+### 3. Install and create the desktop icon
+
+Still inside the `inspiratio` folder:
 
 ```bash
 npm install
 ```
 
 ```bash
+npm run shortcut
+```
+
+This creates an **Inspiratio** icon:
+
+- **Windows**: on the Desktop and in the Start menu.
+- **macOS**: `Inspiratio.app` in your `Applications` folder (inside your home folder, so it also shows up in
+  Spotlight and Launchpad) plus a link to it on the Desktop. Drag it to the Dock if you like.
+- **Linux**: on the Desktop (if you have one) and in the applications menu.
+
+### 4. Open it
+
+Double-click the **Inspiratio** icon. Each time it:
+
+1. downloads the latest version from GitHub (if you are offline it just uses the version you have),
+2. installs any new dependencies and builds the app (the first run takes a minute, later runs a few seconds),
+3. starts the Inspiratio server in the background, and
+4. opens the canvas in its own window at http://127.0.0.1:4319.
+
+On Windows a minimized console window shows the progress and stays open with the error if something fails. On macOS
+you get a notification while it starts, and an alert if it fails.
+
+Closing the window does not stop the server, so opening the icon again is instant. To stop it, run `npm run stop`
+in the `inspiratio` folder (restarting the computer also stops it).
+
+### Where your library lives
+
+Everything you add is stored in the `data` folder inside `inspiratio` (`media`, `library.json`, `trash`, `logs`).
+Back that folder up to keep your boards; copying it into another Inspiratio install moves them there. Set the
+`INSPIRATIO_DATA_DIR` environment variable to keep the library elsewhere.
+
+### Troubleshooting
+
+| Problem                                                   | Fix                                                                                                                                               |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node` or `npm` is "not recognized" / "command not found" | Install Node.js, then open a **new** terminal window.                                                                                             |
+| The icon does nothing (macOS)                             | Open `data/logs/launch.log` in the `inspiratio` folder for the error. If you installed Node in another place since, run `npm run shortcut` again. |
+| The icon stopped working after moving the folder          | Run `npm run shortcut` again from the new location.                                                                                               |
+| "Could not update from GitHub"                            | You are offline or not signed in to GitHub; Inspiratio still opens with the version you have.                                                     |
+| The server does not start                                 | See `data/logs/server.log`. Another program may be using port 4319: stop it, or set `INSPIRATIO_PORT` to another port.                            |
+| `npm install` fails on `sharp` (image library)            | Make sure Node is 22 or newer and run `npm install` again with a working internet connection.                                                     |
+
+### Development
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:5319. The API runs on http://127.0.0.1:4319. Your library lives in `./data` (media files,
-`library.json`, logs, trash); set `INSPIRATIO_DATA_DIR` to keep it elsewhere.
+Open http://localhost:5319 (hot reload). The API runs on http://127.0.0.1:4319.
 
-On Windows, `scripts\launch.cmd` builds the web app, starts the server in a minimized "Inspiratio server" window
-(close it to stop) and opens http://127.0.0.1:4319 as an Edge app window. Point a desktop shortcut at it with
-`scripts\inspiratio.ico` as its icon.
+## AI generation (optional)
+
+Generating images and videos needs [Claude Code](https://claude.com/claude-code) and a
+[Higgsfield](https://higgsfield.ai) account. The rest of the canvas works without them.
+
+1. Install Claude Code and sign in (run `claude` once in a terminal).
+2. Connect Higgsfield to Claude Code:
+
+   ```bash
+   claude mcp add --transport http higgsfield https://mcp.higgsfield.ai/mcp
+   ```
+
+   Then start `claude`, type `/mcp`, pick **higgsfield** and sign in.
 
 Pressing **Generate** starts a headless Claude Code run (`claude -p`, Sonnet by default) limited to the Inspiratio and
 Higgsfield MCP servers; it follows the guide returned by `get_generation_request` and logs to `data/agent/<id>.log`.
@@ -76,13 +166,16 @@ A floating toolbar above the selected images offers Generate image/video, Create
 
 ## Scripts
 
-| Script                        | What it does                                                                            |
-| ----------------------------- | --------------------------------------------------------------------------------------- |
-| `npm run dev`                 | API (watch) + web dev server                                                            |
-| `npm run build` / `npm start` | Build the web app, then serve app + API from one process on :4319                       |
-| `npm run mcp`                 | Run the MCP server on stdio (Claude Code does this for you through `.mcp.json`)         |
-| `npm run verify`              | typecheck + lint + prettier check + unit tests with coverage (90% thresholds)           |
-| `npm run test:e2e`            | Playwright end-to-end tests (isolated `.e2e-data` library, includes the MCP round-trip) |
+| Script                        | What it does                                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                 | API (watch) + web dev server                                                                            |
+| `npm run build` / `npm start` | Build the web app, then serve app + API from one process on :4319                                       |
+| `npm run app`                 | What the desktop icon does: update, install, build, start the server in the background, open the window |
+| `npm run stop`                | Stop the background server started by the icon                                                          |
+| `npm run shortcut`            | Create the desktop icon for this folder (Windows, macOS, Linux)                                         |
+| `npm run mcp`                 | Run the MCP server on stdio (Claude Code does this for you through `.mcp.json`)                         |
+| `npm run verify`              | typecheck + lint + prettier check + unit tests with coverage (90% thresholds)                           |
+| `npm run test:e2e`            | Playwright end-to-end tests (isolated `.e2e-data` library, includes the MCP round-trip)                 |
 
 ## Project layout
 

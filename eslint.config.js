@@ -104,6 +104,11 @@ export default defineConfig(
     rules: { 'no-restricted-syntax': ['error', NO_CLASSES, NO_RAW_JSX, NO_HOOKS_IN_VIEWS] },
   },
   {
+    // Plain Node launcher scripts run without a build step, so they are linted without type info.
+    files: ['scripts/**/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
     files: ['**/__test__/**', 'e2e/**'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
