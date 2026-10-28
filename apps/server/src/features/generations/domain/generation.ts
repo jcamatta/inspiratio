@@ -7,6 +7,7 @@ import {
   type GenerationReference,
   type GenerationRequest,
   type GenerationStatus,
+  type GenerationStep,
   type Item,
   type ProviderUpload,
   type ResolvedReference,
@@ -47,6 +48,8 @@ export const createGenerationRequest = (params: {
   size: params.input.size ?? null,
   progress: null,
   queuedAt: params.input.submit ? params.now : null,
+  steps: [],
+  finishedAt: null,
 })
 
 export const CARD_SIZE = { width: 340, height: 420 } as const
@@ -124,6 +127,30 @@ export const canTransition = (params: {
   readonly to: GenerationStatus
 }): boolean => TRANSITIONS[params.from].includes(params.to)
 
+const isFinal = (status: GenerationStatus): boolean => status === 'completed' || status === 'failed'
+
+/** Ends the step that is still running, if any. */
+export const closeSteps = (params: {
+  readonly steps: readonly GenerationStep[]
+  readonly now: string
+}): GenerationStep[] =>
+  params.steps.map((step) => (step.endedAt === null ? { ...step, endedAt: params.now } : step))
+
+/** Steps follow a run: queuing starts a fresh list and finishing closes the last step. */
+const stepsAfter = (params: {
+  readonly request: GenerationRequest
+  readonly to: GenerationStatus
+  readonly now: string
+}): Pick<GenerationRequest, 'steps' | 'finishedAt'> => {
+  if (params.to === 'pending') return { steps: [], finishedAt: null }
+  if (isFinal(params.to))
+    return {
+      steps: closeSteps({ steps: params.request.steps, now: params.now }),
+      finishedAt: params.now,
+    }
+  return { steps: params.request.steps, finishedAt: params.request.finishedAt }
+}
+
 /** The request lifecycle as a small state machine; invalid moves are reported, not thrown. */
 export const transition = (params: {
   readonly request: GenerationRequest
@@ -145,7 +172,31 @@ export const transition = (params: {
     resultItemIds: [...params.request.resultItemIds, ...(params.resultItemIds ?? [])],
     progress: params.to === 'in_progress' ? params.request.progress : null,
     queuedAt: params.to === 'pending' ? params.now : params.request.queuedAt,
+    ...stepsAfter(params),
   })
+}
+
+/**
+ * The agent moved on to a new step: the previous one ends now. Repeating the current step or
+ * reporting on a request that is not running changes nothing.
+ */
+export const startStep = (params: {
+  readonly request: GenerationRequest
+  readonly label: string
+  readonly now: string
+}): GenerationRequest => {
+  const { request } = params
+  const current = request.steps.at(-1)
+  const running = request.status === 'pending' || request.status === 'in_progress'
+  if (!running || (current?.label === params.label && current.endedAt === null)) return request
+  return {
+    ...request,
+    updatedAt: params.now,
+    steps: [
+      ...closeSteps({ steps: request.steps, now: params.now }),
+      { label: params.label, startedAt: params.now, endedAt: null },
+    ],
+  }
 }
 
 /** A status line from the agent; reporting on a pending request also marks it as started. */

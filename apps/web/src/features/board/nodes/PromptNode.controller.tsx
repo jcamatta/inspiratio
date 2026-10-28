@@ -10,6 +10,7 @@ import {
   isStalled,
   modelsFor,
 } from '../../generation/domain/prompt.ts'
+import { currentStep, runDuration } from '../../generation/domain/steps.ts'
 import { isActive, useGenerationCommands } from '../../generation/generation.hooks.ts'
 import { useBoardActions } from '../board.actions.ts'
 import type { PromptFlowNode, PromptNodeData } from '../domain/flow-mapping.ts'
@@ -97,6 +98,8 @@ const PromptCard = ({
       elapsed={
         active ? formatElapsed(now - Date.parse(request.queuedAt ?? request.updatedAt)) : null
       }
+      step={currentStep(request)?.label ?? null}
+      duration={active ? null : runDuration(request)}
       canGenerate={brief.trim() !== '' && dangling.length === 0}
       onSettingsChange={(settings: PromptSettings) => {
         void generations.update({

@@ -1,14 +1,25 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdir, open, writeFile } from 'node:fs/promises'
+import { createWriteStream } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { createInterface } from 'node:readline'
+import { parseAgentLine, STARTING_STEP, type ProviderCall } from './agent-steps.ts'
 
 export type AgentOutcome = { readonly exitCode: number | null; readonly logFile: string }
 
-/** Runs an agent that fulfils one generation request and resolves when it exits. */
-export type AgentRunner = (params: { readonly generationId: string }) => Promise<AgentOutcome>
+export type AgentRunParams = {
+  readonly generationId: string
+  /** Called when the agent moves to a new step; consecutive identical steps are merged. */
+  readonly onStep: (label: string) => void
+  /** Called with the model and prompt of each generate call sent to the provider. */
+  readonly onProviderCall: (call: ProviderCall) => void
+}
 
-export const AGENT_TOOLS = ['mcp__inspiratio', 'mcp__higgsfield', 'Bash(curl:*)'] as const
+/** Runs an agent that fulfils one generation request and resolves when it exits. */
+export type AgentRunner = (params: AgentRunParams) => Promise<AgentOutcome>
+
+export const AGENT_TOOLS = ['mcp__inspiratio', 'mcp__higgsfield', 'Bash(curl:*)', 'Read'] as const
 
 export const agentPrompt = (generationId: string): string =>
   `Fulfil Inspiratio generation request ${generationId}: call mcp__inspiratio__get_generation_request and follow its guide exactly. Work fast, batch independent calls and do not explain.`
@@ -46,19 +57,34 @@ export const createClaudeAgentRunner = async (params: {
   const mcpConfigPath = join(params.workDir, 'mcp.json')
   await writeFile(mcpConfigPath, JSON.stringify({ mcpServers: params.mcpServers }, null, 2))
 
-  return async ({ generationId }) => {
+  return async ({ generationId, onStep, onProviderCall }) => {
     const logFile = join(params.workDir, `${generationId}.log`)
-    const log = await open(logFile, 'w')
+    const log = createWriteStream(logFile)
+    await once(log, 'open')
     const child = spawnFn(
       params.command,
       agentArgs({ generationId, model: params.model, mcpConfigPath }),
-      { cwd: params.cwd, stdio: ['ignore', log.fd, log.fd], windowsHide: true },
+      { cwd: params.cwd, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
     )
-    const exitCode = await once(child, 'exit').then(
+    const step = { current: STARTING_STEP }
+    onStep(STARTING_STEP)
+    child.stdout.pipe(log, { end: false })
+    child.stderr.pipe(log, { end: false })
+    createInterface({ input: child.stdout, crlfDelay: Infinity }).on('line', (line: string) => {
+      for (const signal of parseAgentLine(line)) {
+        if (signal.type === 'provider_call') onProviderCall(signal.call)
+        else if (signal.label !== step.current) {
+          step.current = signal.label
+          onStep(signal.label)
+        }
+      }
+    })
+    const exitCode = await once(child, 'close').then(
       ([code]: unknown[]) => (typeof code === 'number' ? code : null),
       () => null,
     )
-    await log.close()
+    log.end()
+    await once(log, 'close')
     return { exitCode, logFile }
   }
 }

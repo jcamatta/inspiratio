@@ -12,10 +12,14 @@ import {
   Text,
   TextArea,
 } from '../../shared/ui/index.ts'
+import type { StepRow } from '../generation/domain/steps.ts'
 import { metadataRows } from '../inspector/domain/metadata.ts'
+
+export type DetailsSteps = { readonly rows: readonly StepRow[]; readonly total: string | null }
 
 export type DetailsViewProps = {
   readonly item: Item
+  readonly steps: DetailsSteps | null
   readonly notes: string
   readonly onNotesChange: (notes: string) => void
   readonly onNotesCommit: () => void
@@ -81,6 +85,44 @@ export const DetailsView = (props: DetailsViewProps) => {
                     >
                       Copy sent prompt
                     </Button>
+                  </Stack>
+                </Disclosure>
+              )}
+              {generation.promptGuide !== null && (
+                <Disclosure label="Guide" testId="details-prompt-guide">
+                  <Box className="rounded-lg bg-background p-2.5">
+                    <Text variant="body" className="whitespace-pre-wrap">
+                      {generation.promptGuide}
+                    </Text>
+                  </Box>
+                </Disclosure>
+              )}
+              {props.steps !== null && (
+                <Disclosure
+                  label={props.steps.total === null ? 'Steps' : `Steps · ${props.steps.total}`}
+                  testId="details-steps"
+                >
+                  <Stack gap={1}>
+                    {[...props.steps.rows.entries()].map(([index, row]) => (
+                      <Stack
+                        key={`${String(index)}-${row.label}`}
+                        direction="row"
+                        justify="between"
+                        gap={3}
+                        testId="details-step"
+                      >
+                        <Text variant="caption">{row.label}</Text>
+                        <Text variant="mono">{row.duration}</Text>
+                      </Stack>
+                    ))}
+                    {props.steps.total !== null && (
+                      <Stack direction="row" justify="between" gap={3}>
+                        <Text variant="label">Total</Text>
+                        <Text variant="mono" testId="details-steps-total">
+                          {props.steps.total}
+                        </Text>
+                      </Stack>
+                    )}
                   </Stack>
                 </Disclosure>
               )}

@@ -15,6 +15,7 @@ import {
   CircleStop,
   LoaderCircle,
   RotateCw,
+  Timer,
   TriangleAlert,
   Bot,
   X,
@@ -46,6 +47,8 @@ export type PromptNodeViewProps = {
   readonly model: string
   readonly dangling: readonly string[]
   readonly elapsed: string | null
+  readonly step: string | null
+  readonly duration: string | null
   readonly stalled: boolean
   readonly onCancel: () => void
   readonly canGenerate: boolean
@@ -258,10 +261,20 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
           <Text variant="body" className="line-clamp-4 whitespace-pre-wrap" testId="prompt-text">
             {request.prompt}
           </Text>
-          <Text variant="caption">
-            {request.kind} · {request.model ?? 'auto'}
-            {request.aspectRatio === null ? '' : ` · ${request.aspectRatio}`}
-          </Text>
+          <Stack direction="row" align="center" justify="between" gap={2}>
+            <Text variant="caption">
+              {request.kind} · {request.model ?? 'auto'}
+              {request.aspectRatio === null ? '' : ` · ${request.aspectRatio}`}
+            </Text>
+            {props.duration !== null && (
+              <Stack direction="row" align="center" gap={1} className="shrink-0">
+                <Timer size={12} className="text-muted-foreground" />
+                <Text variant="mono" testId="prompt-duration">
+                  {props.duration}
+                </Text>
+              </Stack>
+            )}
+          </Stack>
           {props.elapsed !== null && (
             <Stack direction="row" align="center" gap={2} testId="prompt-activity">
               {props.stalled ? (
@@ -270,7 +283,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
                 <LoaderCircle size={14} className="shrink-0 animate-spin text-primary" />
               )}
               <Text variant="caption" className="min-w-0 flex-1 truncate" testId="prompt-progress">
-                {request.progress ?? status.label}
+                {props.step ?? request.progress ?? status.label}
               </Text>
               <Text variant="mono" className="shrink-0" testId="prompt-elapsed">
                 {props.elapsed}

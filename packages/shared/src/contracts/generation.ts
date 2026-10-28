@@ -24,6 +24,14 @@ export const GenerationReferenceSchema = z.object({
 })
 export type GenerationReference = z.infer<typeof GenerationReferenceSchema>
 
+/** One phase of an agent run, e.g. "Uploading references"; endedAt is null while it runs. */
+export const GenerationStepSchema = z.object({
+  label: z.string(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable(),
+})
+export type GenerationStep = z.infer<typeof GenerationStepSchema>
+
 export const GenerationRequestSchema = z.object({
   id: IdSchema,
   prompt: z.string(),
@@ -46,6 +54,10 @@ export const GenerationRequestSchema = z.object({
   progress: z.string().nullable().default(null),
   /** When the request was last queued, for the elapsed time on the card. */
   queuedAt: z.string().nullable().default(null),
+  /** Phases of the current run, read from the agent output. */
+  steps: z.array(GenerationStepSchema).default([]),
+  /** When the current run completed or failed. */
+  finishedAt: z.string().nullable().default(null),
 })
 export type GenerationRequest = z.infer<typeof GenerationRequestSchema>
 

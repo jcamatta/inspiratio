@@ -1,6 +1,6 @@
 import { err, ok, type LibraryState, type Result } from '@inspiratio/shared'
 import { createApp, type AppDeps } from '../app.ts'
-import type { AgentOutcome } from '../shared/agent/agent-runner.ts'
+import type { AgentOutcome, AgentRunParams } from '../shared/agent/agent-runner.ts'
 import { createLogger, memorySink } from '../shared/logging/logger.ts'
 import { fixedClock, sequentialIds } from '../shared/lib/runtime.ts'
 import { createMemoryMediaStorage } from '../shared/media/media-storage.ts'
@@ -73,7 +73,7 @@ export const createTestDeps = (params?: {
   readonly fetch?: FetchFn
   readonly files?: Readonly<Record<string, Uint8Array>>
   readonly openFails?: boolean
-  readonly agent?: (generationId: string) => Promise<AgentOutcome>
+  readonly agent?: (run: AgentRunParams) => Promise<AgentOutcome>
   readonly guides?: Readonly<Record<string, string>>
 }) => {
   const logs = memorySink()
@@ -104,9 +104,9 @@ export const createTestDeps = (params?: {
     runAgent:
       params?.agent === undefined
         ? null
-        : ({ generationId }) => {
-            agentRuns.push(generationId)
-            return params.agent?.(generationId) ?? Promise.resolve({ exitCode: 0, logFile: '' })
+        : (run) => {
+            agentRuns.push(run.generationId)
+            return params.agent?.(run) ?? Promise.resolve({ exitCode: 0, logFile: '' })
           },
     openFolder: (path) => {
       if (params?.openFails === true) return Promise.reject(new Error('no file manager'))
