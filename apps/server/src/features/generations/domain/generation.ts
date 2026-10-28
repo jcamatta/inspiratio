@@ -3,6 +3,7 @@ import {
   mediaUrlOf,
   ok,
   type CreateGenerationCommand,
+  type GenerationKind,
   type GenerationReference,
   type GenerationRequest,
   type GenerationStatus,
@@ -49,6 +50,29 @@ export const createGenerationRequest = (params: {
 })
 
 export const CARD_SIZE = { width: 340, height: 420 } as const
+
+/** Model used when the request is on Auto (model null). */
+export const DEFAULT_MODELS: Readonly<Record<GenerationKind, string>> = {
+  image: 'nano_banana_pro',
+  video: 'kling3_0',
+}
+
+export const DEFAULT_GUIDE = 'default'
+
+const GUIDE_ID = /^[a-z0-9][a-z0-9_.-]*$/i
+
+export const resolvedModelOf = (params: {
+  readonly model: string | null
+  readonly kind: GenerationKind
+}): string => params.model ?? DEFAULT_MODELS[params.kind]
+
+/** Guides to try in order: the model's own, then the default. Ids unsafe as file names skip to the default. */
+export const guideCandidatesOf = (params: { readonly model: string }): string[] =>
+  GUIDE_ID.test(params.model) && params.model !== DEFAULT_GUIDE
+    ? [params.model, DEFAULT_GUIDE]
+    : [DEFAULT_GUIDE]
+
+export const guideFileOf = (params: { readonly guide: string }): string => `${params.guide}.md`
 
 export const updateDraft = (params: {
   readonly request: GenerationRequest

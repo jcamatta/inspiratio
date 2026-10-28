@@ -11,12 +11,14 @@ import { sortBy } from '../../../shared/lib/compare.ts'
 import type { MediaStorage } from '../../../shared/media/media-storage.ts'
 import type { UploadPreparer } from '../../../shared/media/upload-copy.ts'
 import type { LibraryStore } from '../../../shared/persistence/library-store.ts'
-import { resolveReferences } from '../domain/generation.ts'
+import { resolvedModelOf, resolveReferences } from '../domain/generation.ts'
+import type { PromptGuideReader } from '../infrastructure/prompt-guide-reader.ts'
 
 export const createGenerationQueries = (deps: {
   readonly store: LibraryStore
   readonly storage: MediaStorage
   readonly prepareUpload: UploadPreparer
+  readonly readPromptGuide: PromptGuideReader
 }) => {
   /** Newest first. */
   const list = (input: ListGenerationsInput): GenerationRequest[] =>
@@ -45,7 +47,9 @@ export const createGenerationQueries = (deps: {
         return { ...reference, uploadPath: upload.path, uploadMimeType: upload.mimeType }
       }),
     )
-    return ok({ ...request, resolvedReferences })
+    const model = resolvedModelOf(request)
+    const guide = await deps.readPromptGuide({ model })
+    return ok({ ...request, resolvedReferences, promptGuide: { model, ...guide } })
   }
 
   return { list, details }

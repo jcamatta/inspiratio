@@ -3,6 +3,7 @@ import type { Express } from 'express'
 import { createGenerationCommands } from './features/generations/application/generation.commands.ts'
 import { createGenerationQueries } from './features/generations/application/generation.queries.ts'
 import { generationRoutes } from './features/generations/http/generation.routes.ts'
+import type { PromptGuideReader } from './features/generations/infrastructure/prompt-guide-reader.ts'
 import { createItemCommands } from './features/items/application/item.commands.ts'
 import type { ItemDeps } from './features/items/application/item.deps.ts'
 import { createItemQueries } from './features/items/application/item.queries.ts'
@@ -31,6 +32,8 @@ export type AppDeps = ItemDeps & {
   readonly prepareUpload: UploadPreparer
   /** Starts an agent for each queued generation; null leaves requests for a manual Claude session. */
   readonly runAgent: AgentRunner | null
+  /** Reads `prompt-guides/<model>.md` for the model a generation resolves to. */
+  readonly readPromptGuide: PromptGuideReader
   /** Logger used to re-emit browser records verbatim. */
   readonly clientLogSink: ItemDeps['logger']
 }

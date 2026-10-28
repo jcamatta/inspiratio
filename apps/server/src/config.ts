@@ -22,6 +22,8 @@ export type Config = {
   readonly agentModel: string
   readonly agentDir: string
   readonly higgsfieldMcpUrl: string
+  /** Folder with one `<model>.md` prompt guide per model plus `default.md`. */
+  readonly promptGuidesDir: string
 }
 
 export type Env = Readonly<Record<string, string | undefined>>
@@ -62,5 +64,6 @@ export const loadConfig = (params: { readonly env: Env; readonly rootDir: string
     agentModel: env.INSPIRATIO_AGENT_MODEL ?? 'sonnet',
     agentDir: join(dataDir, 'agent'),
     higgsfieldMcpUrl: env.INSPIRATIO_HIGGSFIELD_MCP_URL ?? 'https://mcp.higgsfield.ai/mcp',
+    promptGuidesDir: resolve(params.rootDir, env.INSPIRATIO_PROMPT_GUIDES_DIR ?? 'prompt-guides'),
   }
 }

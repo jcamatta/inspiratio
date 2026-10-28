@@ -31,7 +31,7 @@ export const createMcpServer = (handlers: ToolHandlers): McpServer => {
     {
       title: 'Get generation request',
       description:
-        'Returns the prompt, settings and resolved references (absolute file paths, tags, notes) plus a step-by-step Higgsfield guide.',
+        'Returns the prompt, settings and resolved references (absolute file paths, tags, notes), the promptGuide (model to use and the guide to follow for the provider prompt) plus a step-by-step Higgsfield guide.',
       inputSchema: toolInputs.getGenerationRequest.shape,
     },
     (input) => handlers.getGenerationRequest(input),

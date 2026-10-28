@@ -90,7 +90,7 @@ export type ModelOption = {
 
 export const AUTO_MODEL = 'auto'
 
-/** Suggestions only: Claude may pick another Higgsfield model (models_explore) when set to auto. */
+/** Auto resolves to nano_banana_pro (image) or kling3_0 (video); each model has its guide in prompt-guides/. */
 export const MODEL_OPTIONS: readonly ModelOption[] = [
   { value: AUTO_MODEL, label: 'Auto', kind: 'any' },
   { value: 'nano_banana_pro', label: 'Nano Banana Pro', kind: 'image' },

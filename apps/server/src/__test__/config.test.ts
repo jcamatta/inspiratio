@@ -21,6 +21,7 @@ describe('loadConfig', () => {
       agentModel: 'sonnet',
       agentDir: join(root, 'data', 'agent'),
       higgsfieldMcpUrl: 'https://mcp.higgsfield.ai/mcp',
+      promptGuidesDir: join(root, 'prompt-guides'),
     })
     expect(loadConfig({ env: { INSPIRATIO_AGENT: 'off' }, rootDir: root }).agentCommand).toBeNull()
   })
@@ -35,6 +36,7 @@ describe('loadConfig', () => {
         INSPIRATIO_LOG_FORMAT: 'json',
         INSPIRATIO_API_URL: 'http://api',
         INSPIRATIO_MAX_IMPORT_MB: 'oops',
+        INSPIRATIO_PROMPT_GUIDES_DIR: absolute,
       },
       rootDir: '/repo',
     })
@@ -45,6 +47,7 @@ describe('loadConfig', () => {
       logFormat: 'json',
       apiUrl: 'http://api',
       maxImportBytes: 300 * 1024 * 1024,
+      promptGuidesDir: absolute,
     })
   })
 })

@@ -5,7 +5,10 @@ import { sequentialIds } from '../../shared/lib/runtime.ts'
 import {
   canTransition,
   createGenerationRequest,
+  guideCandidatesOf,
+  guideFileOf,
   labelReferences,
+  resolvedModelOf,
   resolveReferences,
   resultPosition,
   transition,
@@ -368,5 +371,21 @@ describe('generation domain', () => {
     expect(updateDraft({ request: request(), patch: { prompt: 'x' }, now: 'l' }).ok).toBe(false)
     expect(canTransition({ from: 'draft', to: 'pending' })).toBe(true)
     expect(canTransition({ from: 'draft', to: 'completed' })).toBe(false)
+  })
+})
+
+describe('prompt guide selection', () => {
+  it('resolves Auto to the default model of the kind and keeps a chosen model', () => {
+    expect(resolvedModelOf({ model: null, kind: 'image' })).toBe('nano_banana_pro')
+    expect(resolvedModelOf({ model: null, kind: 'video' })).toBe('kling3_0')
+    expect(resolvedModelOf({ model: 'seedream_4_5', kind: 'image' })).toBe('seedream_4_5')
+  })
+
+  it('tries the model guide before the default and never builds unsafe file names', () => {
+    expect(guideCandidatesOf({ model: 'soul_2' })).toEqual(['soul_2', 'default'])
+    expect(guideCandidatesOf({ model: 'default' })).toEqual(['default'])
+    expect(guideCandidatesOf({ model: '../secrets' })).toEqual(['default'])
+    expect(guideCandidatesOf({ model: 'a/b' })).toEqual(['default'])
+    expect(guideFileOf({ guide: 'minimax_h3' })).toBe('minimax_h3.md')
   })
 })

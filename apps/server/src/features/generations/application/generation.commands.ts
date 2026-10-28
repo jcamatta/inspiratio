@@ -225,7 +225,7 @@ export const createGenerationCommands = (deps: GenerationDeps) => {
                 prompt: request.prompt,
                 providerPrompt: params.input.providerPrompt ?? null,
                 run,
-                promptGuide: null,
+                promptGuide: params.input.promptGuide ?? null,
                 referenceItemIds: request.references.map((reference) => reference.itemId),
               },
               systemTagNames: generatedTagNames({ provider: result.provider, model: result.model }),

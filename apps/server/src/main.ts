@@ -9,6 +9,7 @@ import { createFileLibraryStore } from './shared/persistence/library-store.ts'
 import { createSystemFolderOpener } from './shared/system/folder-opener.ts'
 import { createSharpUploadPreparer } from './shared/media/upload-copy.ts'
 import { createClaudeAgentRunner } from './shared/agent/agent-runner.ts'
+import { createFsPromptGuideReader } from './features/generations/infrastructure/prompt-guide-reader.ts'
 
 const rootDir = fileURLToPath(new URL('../../../', import.meta.url))
 const config = loadConfig({ env: process.env, rootDir })
@@ -67,6 +68,7 @@ const start = async (): Promise<void> => {
     openFolder: createSystemFolderOpener(process.platform),
     prepareUpload: await createSharpUploadPreparer({ cacheDir: config.uploadCacheDir }),
     runAgent,
+    readPromptGuide: createFsPromptGuideReader({ dir: config.promptGuidesDir }),
   })
   app.listen(config.port, config.host, () => {
     logger.info({

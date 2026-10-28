@@ -20,6 +20,8 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
 2. **Read it.** `inspiratio.get_generation_request { id }` returns the prompt, `kind` (image | video), `model`
    (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`, `uploadPath`, `uploadMimeType`,
    `mimeType`, `title`, `tags` and `notes`. Tags and notes explain _why_ the user picked each reference — use them.
+   It also returns `promptGuide { model, guide, content }`: the model to generate with and the prompt guide for it
+   (`prompt-guides/<model>.md` at the repo root, or `prompt-guides/default.md` when that model has no guide).
 3. **Mark it started.** `inspiratio.start_generation { id }` (the prompt card shows "Generating…").
    **Resuming:** if the request is already `in_progress`, a previous session stopped midway (for example it ran out of
    usage). `start_generation` still succeeds. Read its `progress` line, then check `higgsfield.show_generations` for jobs
@@ -38,19 +40,20 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
      all PUTs chained with `&&` in a single Bash command, and check every HTTP 200.
    - `higgsfield.media_confirm { media_ids: [...], type: "image" }` (use `"video"` for video references,
      `type: "auto"` is not valid here — confirm images and videos in separate calls).
-5. **Pick the model.** If `model` is set, use it. If null, use `nano_banana_pro` for images (media role
-   `image_references`) and `higgsfield.models_explore` with `action: "recommend"` for videos. Only check roles and aspect
-   ratios with `models_explore` for a model you do not know.
-6. **Write the provider prompt.** Keep the user's intent and wording; replace each label with what that reference
-   contributes, e.g. `@1` → "the location from reference image 1", `@2` → "the lighting and palette of reference image 2".
+5. **Use the model from the request.** Generate with `promptGuide.model`, always. The server already resolved it:
+   the model the user selected, or on **Auto** `nano_banana_pro` for images and `kling3_0` for videos. Never pick
+   another model and do not call `higgsfield.models_explore` unless the guide tells you to check roles or aspect ratios.
+6. **Write the provider prompt by following the guide.** `promptGuide.content` is the prompt guide for that model:
+   follow it exactly (structure, wording rules, what to avoid). Keep the user's intent and replace each label with what
+   that reference contributes, e.g. `@1` → "the location from reference image 1", in the way the guide describes.
    Never invent references the user did not attach.
 7. **Generate.** `higgsfield.generate_image` (kind = image) or `higgsfield.generate_video` (kind = video) with
    `params: { model, prompt, medias: [{ value: <media_id>, role }], aspect_ratio, count }`. Omit `aspect_ratio` when
    the request has none. Do not set `use_unlim` unless the user asked. Wait for completion with `higgsfield.jobs_wait`
    (≤ 15 s per call, repeat until terminal) and collect the result URLs.
-8. **Send the results back.** `inspiratio.complete_generation { id, results: [{ url, model }], providerPrompt, uploads }` — one
-   entry per output, with the exact Higgsfield model id, and `providerPrompt` set to the exact prompt you sent (the
-   user reads it under "Sent to higgsfield" in Details). Inspiratio downloads them, places them next to the references and tags them
+8. **Send the results back.** `inspiratio.complete_generation { id, results: [{ url, model }], providerPrompt, promptGuide, uploads }` — one
+   entry per output, with the exact Higgsfield model id, `providerPrompt` set to the exact prompt you sent (the
+   user reads it under "Sent to higgsfield" in Details) and `promptGuide` set to `promptGuide.guide` (stored on each result). Inspiratio downloads them, places them next to the references and tags them
    `ai-generated`, `by:higgsfield`, `model:<id>`, storing the prompt as metadata. `uploads: [{ itemId, mediaId }]` lists
    the references you uploaded in step 4 so the next request reuses them.
 9. **On any failure** (upload, credits, moderation, timeout) call `inspiratio.fail_generation { id, error }` with a short

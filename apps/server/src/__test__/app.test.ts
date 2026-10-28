@@ -7,7 +7,7 @@ import {
 } from '@inspiratio/shared'
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
-import { createTestApp, fakeFetch, MP4, PNG } from './harness.ts'
+import { createTestApp, fakeFetch, MP4, PNG, TEST_GUIDES } from './harness.ts'
 
 const upload = async (params: {
   readonly app: ReturnType<typeof createTestApp>['app']
@@ -583,5 +583,56 @@ describe('provider uploads', () => {
       resolvedReferences: { providerMediaIds: Record<string, string> }[]
     }
     expect(details.resolvedReferences[0]?.providerMediaIds).toEqual({ higgsfield: 'hf-media-1' })
+  })
+})
+
+describe('prompt guides', () => {
+  const guideOf = async (params: {
+    readonly app: ReturnType<typeof createTestApp>['app']
+    readonly body: Record<string, unknown>
+  }) => {
+    const created = await request(params.app)
+      .post('/api/generations')
+      .send({ prompt: 'Rain', ...params.body })
+    const id = (created.body as { id: string }).id
+    return ((await request(params.app).get(`/api/generations/${id}`)).body as GenerationDetails)
+      .promptGuide
+  }
+
+  it('picks the guide of the selected model, resolving Auto per kind', async () => {
+    const { app } = createTestApp()
+    expect(await guideOf({ app, body: { kind: 'image', model: null } })).toEqual({
+      model: 'nano_banana_pro',
+      guide: 'nano_banana_pro',
+      content: TEST_GUIDES.nano_banana_pro,
+    })
+    expect(await guideOf({ app, body: { kind: 'video' } })).toEqual({
+      model: 'kling3_0',
+      guide: 'kling3_0',
+      content: TEST_GUIDES.kling3_0,
+    })
+    expect(await guideOf({ app, body: { kind: 'image', model: 'mystery_model' } })).toEqual({
+      model: 'mystery_model',
+      guide: 'default',
+      content: TEST_GUIDES.default,
+    })
+  })
+
+  it('stores the guide used on the result items', async () => {
+    const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/out.png': { body: PNG } })
+    const { app } = createTestApp({ fetch: fetchFn })
+    const id = (
+      (await request(app).post('/api/generations').send({ prompt: 'Rain' })).body as { id: string }
+    ).id
+    await request(app)
+      .post(`/api/generations/${id}/complete`)
+      .send({
+        results: [
+          { source: { url: 'https://cdn.higgsfield.ai/out.png' }, model: 'nano_banana_pro' },
+        ],
+        promptGuide: 'nano_banana_pro',
+      })
+      .expect(201)
+    expect((await board(app)).items[0]?.metadata.generation?.promptGuide).toBe('nano_banana_pro')
   })
 })

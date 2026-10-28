@@ -7,6 +7,7 @@ import { createMemoryMediaStorage } from '../shared/media/media-storage.ts'
 import { keepOriginalUpload } from '../shared/media/upload-copy.ts'
 import type { FetchFn } from '../shared/media/remote-media.ts'
 import { createMemoryLibraryStore } from '../shared/persistence/library-store.ts'
+import { createMemoryPromptGuideReader } from '../features/generations/infrastructure/prompt-guide-reader.ts'
 
 /** 2×1 PNG. */
 export const PNG = new Uint8Array(
@@ -20,6 +21,12 @@ export const PNG = new Uint8Array(
 export const MP4 = new Uint8Array([0, 0, 0, 0x18, ...Buffer.from('ftypisom'), 0, 0, 0, 0])
 
 export const NOW = '2026-10-27T10:00:00.000Z'
+
+export const TEST_GUIDES = {
+  nano_banana_pro: '# Nano Banana Pro guide',
+  kling3_0: '# Kling 3.0 guide',
+  default: '# Default guide',
+} as const
 
 export type FakeResponse = {
   readonly status?: number
@@ -67,6 +74,7 @@ export const createTestDeps = (params?: {
   readonly files?: Readonly<Record<string, Uint8Array>>
   readonly openFails?: boolean
   readonly agent?: (generationId: string) => Promise<AgentOutcome>
+  readonly guides?: Readonly<Record<string, string>>
 }) => {
   const logs = memorySink()
   const opened: string[] = []
@@ -92,6 +100,7 @@ export const createTestDeps = (params?: {
     fetchTimeoutMs: 1000,
     webDistDir: null,
     prepareUpload: keepOriginalUpload,
+    readPromptGuide: createMemoryPromptGuideReader({ guides: params?.guides ?? TEST_GUIDES }),
     runAgent:
       params?.agent === undefined
         ? null

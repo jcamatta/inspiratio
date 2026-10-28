@@ -112,6 +112,8 @@ export const CompleteGenerationSchema = z.object({
   results: z.array(GenerationResultSchema).min(1).max(8),
   providerPrompt: z.string().trim().min(1).max(8000).optional(),
   uploads: z.array(ProviderUploadSchema).max(20).default([]),
+  /** Prompt guide followed for the provider prompt: a model id or "default". */
+  promptGuide: z.string().trim().min(1).max(80).optional(),
 })
 export type CompleteGenerationInput = z.input<typeof CompleteGenerationSchema>
 export type CompleteGenerationCommand = z.output<typeof CompleteGenerationSchema>
@@ -145,7 +147,19 @@ export const ResolvedReferenceSchema = z.object({
 })
 export type ResolvedReference = z.infer<typeof ResolvedReferenceSchema>
 
+/** The guide an agent must follow to write the provider prompt for the resolved model. */
+export const PromptGuideSchema = z.object({
+  /** Model to generate with: the request model, or the default for its kind when it is Auto. */
+  model: z.string(),
+  /** Guide file used: the model id when `prompt-guides/<model>.md` exists, otherwise "default". */
+  guide: z.string(),
+  /** Markdown of that guide; empty when no guide file exists. */
+  content: z.string(),
+})
+export type PromptGuide = z.infer<typeof PromptGuideSchema>
+
 export const GenerationDetailsSchema = GenerationRequestSchema.extend({
   resolvedReferences: z.array(ResolvedReferenceSchema),
+  promptGuide: PromptGuideSchema,
 })
 export type GenerationDetails = z.infer<typeof GenerationDetailsSchema>

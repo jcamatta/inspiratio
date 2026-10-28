@@ -106,14 +106,17 @@ describe('MCP tool handlers', () => {
   })
 
   it('returns request details with the Higgsfield guide inside the original trace', async () => {
+    const promptGuide = { model: 'nano_banana_pro', guide: 'nano_banana_pro', content: '# Guide' }
     const { handlers, calls, logs } = setup({
-      'GET /api/generations/gen_1': { ...request, resolvedReferences: [] },
+      'GET /api/generations/gen_1': { ...request, resolvedReferences: [], promptGuide },
     })
     const result = await handlers.getGenerationRequest({ id: 'gen_1' })
     expect(JSON.parse(textOf(result))).toMatchObject({
-      request: { id: 'gen_1' },
+      request: { id: 'gen_1', promptGuide },
       guide: HIGGSFIELD_GUIDE,
     })
+    expect(HIGGSFIELD_GUIDE).toContain('request.promptGuide.model')
+    expect(HIGGSFIELD_GUIDE).toContain('promptGuide set to request.promptGuide.guide')
     expect(calls.at(-1)?.traceId).toBe(TRACE_ID)
     expect(
       logs.filter((record) => record.traceId === TRACE_ID).map((record) => record.msg),
@@ -149,6 +152,7 @@ describe('MCP tool handlers', () => {
         { url: 'https://cdn/x.png', model: 'nano_banana_pro', provider: 'higgsfield' },
         { filePath: 'C:/out.png', model: 'nano_banana_pro', provider: 'higgsfield', title: 'Alt' },
       ],
+      promptGuide: 'nano_banana_pro',
     })
     expect(textOf(done)).toContain('itm_9')
     expect(calls.at(-1)?.body).toEqual({
@@ -166,6 +170,7 @@ describe('MCP tool handlers', () => {
           title: 'Alt',
         },
       ],
+      promptGuide: 'nano_banana_pro',
       uploads: [],
     })
   })
