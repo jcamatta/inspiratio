@@ -8,6 +8,7 @@ import {
   labelReferences,
   resolveReferences,
   resultPosition,
+  startStep,
   transition,
   updateDraft,
 } from '../generations/domain/generation.ts'
@@ -290,6 +291,37 @@ describe('generation domain', () => {
     ).toBe(false)
     const done = transition({ request: request(), to: 'completed', now: 'l', resultItemIds: ['r'] })
     expect(done).toMatchObject({ ok: true, value: { resultItemIds: ['r'] } })
+  })
+
+  it('records the steps of a run and when it finished', () => {
+    const first = startStep({ request: request(), label: 'Starting Claude', now: 't1' })
+    expect(first.steps).toEqual([{ label: 'Starting Claude', startedAt: 't1', endedAt: null }])
+    expect(first.updatedAt).toBe('t1')
+    expect(startStep({ request: first, label: 'Starting Claude', now: 't2' })).toBe(first)
+    const second = startStep({ request: first, label: 'Uploading references', now: 't2' })
+    expect(second.steps).toEqual([
+      { label: 'Starting Claude', startedAt: 't1', endedAt: 't2' },
+      { label: 'Uploading references', startedAt: 't2', endedAt: null },
+    ])
+    const done = transition({ request: second, to: 'completed', now: 't3' })
+    expect(done).toMatchObject({
+      ok: true,
+      value: {
+        finishedAt: 't3',
+        steps: [
+          { label: 'Starting Claude', endedAt: 't2' },
+          { label: 'Uploading references', endedAt: 't3' },
+        ],
+      },
+    })
+    if (!done.ok) return
+    expect(startStep({ request: done.value, label: 'Late', now: 't4' })).toBe(done.value)
+    const again = transition({ request: done.value, to: 'pending', now: 't5' })
+    expect(again).toMatchObject({ ok: true, value: { steps: [], finishedAt: null } })
+    const started = transition({ request: second, to: 'in_progress', now: 't6' })
+    expect(started).toMatchObject({ ok: true, value: { steps: second.steps, finishedAt: null } })
+    const failed = transition({ request: request(), to: 'failed', now: 't7' })
+    expect(failed).toMatchObject({ ok: true, value: { steps: [], finishedAt: 't7' } })
   })
 
   it('resolves references that still exist', () => {

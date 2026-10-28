@@ -557,6 +557,66 @@ describe('automatic agent', () => {
   })
 })
 
+describe('agent steps', () => {
+  it('records the live steps of a run and falls back to the prompt the agent sent', async () => {
+    const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/out.png': { body: PNG } })
+    const finish: { run: () => void } = { run: () => undefined }
+    const { app } = createTestApp({
+      fetch: fetchFn,
+      agent: (run) => {
+        run.onStep('Starting Claude')
+        run.onStep('Generating with nano_banana_pro')
+        run.onProviderCall({ model: 'nano_banana_pro', prompt: 'Rain on neon, image 1 style' })
+        return new Promise((resolve) => {
+          finish.run = () => resolve({ exitCode: 0, logFile: '' })
+        })
+      },
+    })
+    const id = (
+      (await request(app).post('/api/generations').send({ prompt: 'Rain', submit: true })).body as {
+        id: string
+      }
+    ).id
+    const read = async () =>
+      (await request(app).get(`/api/generations/${id}`)).body as GenerationRequest
+    await vi.waitFor(async () => {
+      expect((await read()).steps.map((step) => step.label)).toEqual([
+        'Starting Claude',
+        'Generating with nano_banana_pro',
+      ])
+    })
+    expect((await read()).steps.at(-1)?.endedAt).toBeNull()
+    await request(app)
+      .post(`/api/generations/${id}/complete`)
+      .send({ results: [{ source: { url: 'https://cdn.higgsfield.ai/out.png' }, model: 'm' }] })
+      .expect(201)
+    finish.run()
+    const done = await read()
+    expect(done.finishedAt).not.toBeNull()
+    expect(done.steps.every((step) => step.endedAt !== null)).toBe(true)
+    expect((await board(app)).items[0]?.metadata.generation?.providerPrompt).toBe(
+      'Rain on neon, image 1 style',
+    )
+    await request(app).post(`/api/generations/${id}/retry`).expect(204)
+    expect((await read()).finishedAt).toBeNull()
+  })
+
+  it('ignores steps for a request that is gone', async () => {
+    const { app, logs } = createTestApp({
+      agent: async (run) => {
+        await request(app).delete(`/api/generations/${run.generationId}`)
+        run.onStep('Reading the request')
+        return { exitCode: 0, logFile: '' }
+      },
+    })
+    await request(app).post('/api/generations').send({ prompt: 'Rain', submit: true }).expect(201)
+    await vi.waitFor(() => {
+      expect(logs.some((record) => record.msg === 'agent.finished')).toBe(true)
+    })
+    expect((await request(app).get('/api/generations')).body).toEqual([])
+  })
+})
+
 describe('provider uploads', () => {
   it('remembers uploaded media ids so later requests reuse them', async () => {
     const { fetchFn } = fakeFetch({ 'https://cdn.higgsfield.ai/out.png': { body: PNG } })

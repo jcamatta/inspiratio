@@ -68,6 +68,8 @@ export const makeGeneration = (
   size: null,
   progress: null,
   queuedAt: null,
+  steps: [],
+  finishedAt: null,
   ...overrides,
 })
 
@@ -342,19 +344,33 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
             code: 'validation',
             message: 'Write a prompt before generating',
           })
-        replace({ ...found, status: 'pending', queuedAt: NOW })
+        replace({ ...found, status: 'pending', queuedAt: NOW, steps: [], finishedAt: null })
         return json({ body: { id: found.id } })
       }
       if (method === 'POST' && action === 'retry') {
         state.generations = state.generations.map((request) =>
           request.id === id
-            ? { ...request, status: 'pending', error: null, progress: null, queuedAt: NOW }
+            ? {
+                ...request,
+                status: 'pending',
+                error: null,
+                progress: null,
+                queuedAt: NOW,
+                steps: [],
+                finishedAt: null,
+              }
             : request,
         )
         return noContent()
       }
       if (method === 'POST' && action === 'fail' && found !== undefined) {
-        replace({ ...found, status: 'failed', error: String(body.error), progress: null })
+        replace({
+          ...found,
+          status: 'failed',
+          error: String(body.error),
+          progress: null,
+          finishedAt: NOW,
+        })
         return noContent()
       }
       if (method === 'DELETE') {

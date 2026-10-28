@@ -2,6 +2,8 @@ import type { Item } from '@inspiratio/shared'
 import { useState } from 'react'
 import { notify } from '../../shared/ui/index.ts'
 import { useBoardCommands } from '../board/board.hooks.ts'
+import { runDuration, stepRows } from '../generation/domain/steps.ts'
+import { useGenerationsQuery } from '../generation/generation.hooks.ts'
 import { DetailsView } from './Details.view.tsx'
 
 const DetailsContent = ({
@@ -12,10 +14,19 @@ const DetailsContent = ({
   readonly onClose: () => void
 }) => {
   const commands = useBoardCommands()
+  const { requests } = useGenerationsQuery()
   const [notes, setNotes] = useState(item.metadata.notes)
+  const [now] = useState(() => Date.now())
+  const requestId = item.metadata.generation?.requestId
+  const request = requests.find((candidate) => candidate.id === requestId)
   return (
     <DetailsView
       item={item}
+      steps={
+        request === undefined || request.steps.length === 0
+          ? null
+          : { rows: stepRows({ steps: request.steps, now }), total: runDuration(request) }
+      }
       notes={notes}
       onNotesChange={setNotes}
       onNotesCommit={() => {

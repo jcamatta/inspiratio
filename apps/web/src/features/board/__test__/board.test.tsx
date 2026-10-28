@@ -559,6 +559,13 @@ describe('Prompt cards', () => {
           aspectRatio: '16:9',
           progress: 'Uploading 1 reference',
           queuedAt: new Date(Date.now() - 65_000).toISOString(),
+          steps: [
+            {
+              label: 'Uploading references',
+              startedAt: new Date(Date.now() - 5_000).toISOString(),
+              endedAt: null,
+            },
+          ],
           size: { width: 420, height: 520 },
         }),
         makeGeneration({
@@ -571,9 +578,8 @@ describe('Prompt cards', () => {
     })
     const { user, queryClient } = renderWithApp({ ui: <AppView />, api })
     const running = await screen.findByTestId('prompt-node-gen_run')
-    expect(within(running).getByTestId('prompt-progress')).toHaveTextContent(
-      'Uploading 1 reference',
-    )
+    expect(within(running).getByTestId('prompt-progress')).toHaveTextContent('Uploading references')
+    expect(within(running).queryByTestId('prompt-duration')).not.toBeInTheDocument()
     expect(within(running).getByTestId('prompt-elapsed')).toHaveTextContent(/^1:0\d$/)
     const failed = await screen.findByTestId('prompt-node-gen_bad')
     expect(within(failed).queryByTestId('prompt-activity')).not.toBeInTheDocument()
@@ -586,7 +592,13 @@ describe('Prompt cards', () => {
     })
     api.state.generations = api.state.generations.map((request) =>
       request.id === 'gen_run'
-        ? { ...request, status: 'completed', resultItemIds: ['itm_r'] }
+        ? {
+            ...request,
+            status: 'completed',
+            resultItemIds: ['itm_r'],
+            queuedAt: '2026-10-27T10:00:00.000Z',
+            finishedAt: '2026-10-27T10:01:12.000Z',
+          }
         : request,
     )
     await act(async () => {
@@ -594,6 +606,7 @@ describe('Prompt cards', () => {
     })
     expect(await screen.findByText('Generation finished')).toBeInTheDocument()
     const done = await screen.findByTestId('prompt-node-gen_run')
+    expect(within(done).getByTestId('prompt-duration')).toHaveTextContent('1m 12s')
     await user.click(within(done).getByLabelText('Show results'))
     await user.click(within(done).getByTestId('prompt-again'))
     await waitFor(() => {

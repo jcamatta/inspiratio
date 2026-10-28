@@ -11,6 +11,7 @@ import {
   type UpdateGenerationInput,
 } from '@inspiratio/shared'
 import type { AgentRunner } from '../../../shared/agent/agent-runner.ts'
+import type { ProviderCall } from '../../../shared/agent/agent-steps.ts'
 import { findById, removeById, upsert } from '../../../shared/lib/collections.ts'
 import { fetchRemoteMedia } from '../../../shared/media/remote-media.ts'
 import type { ItemDeps } from '../../items/application/item.deps.ts'
@@ -29,6 +30,7 @@ import {
   rememberUploads,
   reportProgress,
   resultPosition,
+  startStep,
   transition,
   updateDraft,
 } from '../domain/generation.ts'
@@ -37,6 +39,7 @@ export type GenerationDeps = ItemDeps & { readonly runAgent: AgentRunner | null 
 
 export const createGenerationCommands = (deps: GenerationDeps) => {
   const running = new Set<string>()
+  const providerCalls = new Map<string, ProviderCall>()
 
   const isOpen = (id: string): boolean => {
     const status = findById({ list: deps.store.read().generations, id })?.status
@@ -49,8 +52,19 @@ export const createGenerationCommands = (deps: GenerationDeps) => {
     if (runAgent === null || running.has(id)) return
     running.add(id)
     deps.logger.info({ msg: 'agent.started', generationId: id })
-    void runAgent({ generationId: id }).then(async (outcome) => {
+    providerCalls.delete(id)
+    void runAgent({
+      generationId: id,
+      onStep: (label) => {
+        void recordStep({ id, label })
+      },
+      onProviderCall: (call) => {
+        providerCalls.set(id, call)
+        deps.logger.info({ msg: 'agent.provider_call', generationId: id, model: call.model })
+      },
+    }).then(async (outcome) => {
       running.delete(id)
+      providerCalls.delete(id)
       deps.logger.info({ msg: 'agent.finished', generationId: id, exitCode: outcome.exitCode })
       if (isOpen(id))
         await move({
@@ -58,6 +72,18 @@ export const createGenerationCommands = (deps: GenerationDeps) => {
           to: 'failed',
           error: `Claude stopped without finishing. Log: ${outcome.logFile}`,
         })
+    })
+  }
+
+  /** Steps are applied inside the store update so they never overwrite a concurrent change. */
+  const recordStep = async (params: { readonly id: string; readonly label: string }) => {
+    await deps.store.update((state) => {
+      const request = findById({ list: state.generations, id: params.id })
+      if (request === undefined) return state
+      const next = startStep({ request, label: params.label, now: deps.clock() })
+      return next === request
+        ? state
+        : { ...state, generations: upsert({ list: state.generations, entity: next }) }
     })
   }
 
@@ -223,7 +249,8 @@ export const createGenerationCommands = (deps: GenerationDeps) => {
                 provider: result.provider,
                 model: result.model,
                 prompt: request.prompt,
-                providerPrompt: params.input.providerPrompt ?? null,
+                providerPrompt:
+                  params.input.providerPrompt ?? providerCalls.get(request.id)?.prompt ?? null,
                 run,
                 promptGuide: null,
                 referenceItemIds: request.references.map((reference) => reference.itemId),
