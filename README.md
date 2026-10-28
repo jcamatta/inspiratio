@@ -37,8 +37,8 @@ It should print `v22` or higher.
 
 ### 2. Download Inspiratio
 
-The repository is private, so ask the owner to invite your GitHub account as a collaborator first. Then, in the
-terminal, go to the folder where you want the app (for example your home folder) and clone it:
+In the terminal, go to the folder where you want the app (for example your home folder) and clone it (no GitHub
+account needed):
 
 ```bash
 git clone -b main https://github.com/jcamatta/inspiratio.git
@@ -48,7 +48,7 @@ git clone -b main https://github.com/jcamatta/inspiratio.git
 cd inspiratio
 ```
 
-Git asks you to sign in to GitHub the first time. Keep this folder where it is: the desktop icon points to it.
+Keep this folder where it is: the desktop icon points to it.
 
 ### 3. Install and create the desktop icon
 
@@ -97,7 +97,7 @@ Back that folder up to keep your boards; copying it into another Inspiratio inst
 | `node` or `npm` is "not recognized" / "command not found" | Install Node.js, then open a **new** terminal window.                                                                                             |
 | The icon does nothing (macOS)                             | Open `data/logs/launch.log` in the `inspiratio` folder for the error. If you installed Node in another place since, run `npm run shortcut` again. |
 | The icon stopped working after moving the folder          | Run `npm run shortcut` again from the new location.                                                                                               |
-| "Could not update from GitHub"                            | You are offline or not signed in to GitHub; Inspiratio still opens with the version you have.                                                     |
+| "Could not update from GitHub"                            | You are offline; Inspiratio still opens with the version you have.                                                                                |
 | The server does not start                                 | See `data/logs/server.log`. Another program may be using port 4319: stop it, or set `INSPIRATIO_PORT` to another port.                            |
 | `npm install` fails on `sharp` (image library)            | Make sure Node is 22 or newer and run `npm install` again with a working internet connection.                                                     |
 
