@@ -378,7 +378,7 @@ describe('prompt guide selection', () => {
   it('resolves Auto to the default model of the kind and keeps a chosen model', () => {
     expect(resolvedModelOf({ model: null, kind: 'image' })).toBe('nano_banana_pro')
     expect(resolvedModelOf({ model: null, kind: 'video' })).toBe('kling3_0')
-    expect(resolvedModelOf({ model: 'seedream_4_5', kind: 'image' })).toBe('seedream_4_5')
+    expect(resolvedModelOf({ model: 'seedream_v4_5', kind: 'image' })).toBe('seedream_v4_5')
   })
 
   it('tries the model guide before the default and never builds unsafe file names', () => {

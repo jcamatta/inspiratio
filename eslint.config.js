@@ -41,6 +41,7 @@ export default defineConfig(
       'playwright-report/**',
       'test-results/**',
       'data/**',
+      '.claude/worktrees/**',
       '.e2e-data/**',
     ],
   },

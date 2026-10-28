@@ -95,7 +95,7 @@ export const MODEL_OPTIONS: readonly ModelOption[] = [
   { value: AUTO_MODEL, label: 'Auto', kind: 'any' },
   { value: 'nano_banana_pro', label: 'Nano Banana Pro', kind: 'image' },
   { value: 'gpt_image_2_5', label: 'GPT Image 2.5', kind: 'image' },
-  { value: 'seedream_4_5', label: 'Seedream 4.5', kind: 'image' },
+  { value: 'seedream_v4_5', label: 'Seedream 4.5', kind: 'image' },
   { value: 'soul_2', label: 'Higgsfield Soul 2', kind: 'image' },
   { value: 'seedance_2_5', label: 'Seedance 2.5', kind: 'video' },
   { value: 'kling3_0', label: 'Kling 3.0', kind: 'video' },
