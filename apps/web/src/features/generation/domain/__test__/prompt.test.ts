@@ -12,7 +12,12 @@ import {
   STALLED_AFTER_MS,
   labelOf,
   mentionedTokens,
-  modelsFor,
+  aspectChoicesOf,
+  cardModelOf,
+  modelChangePatch,
+  modelChoicesOf,
+  settingChoicesOf,
+  settingsSummaryOf,
   removeReference,
 } from '../prompt.ts'
 
@@ -86,9 +91,52 @@ describe('prompt tokens', () => {
   })
 
   it('offers models per kind and builds the Claude instruction', () => {
-    expect(modelsFor('video').every((option) => option.kind !== 'image')).toBe(true)
-    expect(modelsFor('image')[0]?.value).toBe('auto')
+    expect(modelChoicesOf('image').map((choice) => choice.label)).toEqual([
+      'Nano Banana Pro',
+      'GPT Image 2.5',
+      'FLUX 3',
+    ])
+    expect(modelChoicesOf('video').map((choice) => choice.value)).toEqual(['seedance_2_5'])
     expect(claudeInstruction('gen_1')).toContain('gen_1')
+  })
+
+  it('falls back to the kind default for a card without an offered model', () => {
+    expect(cardModelOf({ model: null, kind: 'video' }).id).toBe('seedance_2_5')
+    expect(cardModelOf({ model: 'kling3_0', kind: 'video' }).id).toBe('seedance_2_5')
+    expect(cardModelOf({ model: 'flux_3_image', kind: 'image' }).id).toBe('flux_3_image')
+  })
+
+  it('lists Auto plus the ratios the model accepts', () => {
+    const ratios = aspectChoicesOf(cardModelOf({ model: 'seedance_2_5', kind: 'video' }))
+    expect(ratios.map((choice) => choice.value)).toEqual([
+      'auto',
+      '21:9',
+      '16:9',
+      '4:3',
+      '1:1',
+      '3:4',
+      '9:16',
+    ])
+  })
+
+  it('resets settings and drops an unsupported ratio when the model changes', () => {
+    expect(modelChangePatch({ aspectRatio: '27:16', model: 'nano_banana_pro' })).toEqual({
+      model: 'nano_banana_pro',
+      options: {},
+      aspectRatio: null,
+    })
+    expect(modelChangePatch({ aspectRatio: '16:9', model: 'flux_3_image' }).aspectRatio).toBe(
+      '16:9',
+    )
+  })
+
+  it('lists setting choices and summarises the card settings', () => {
+    const seedance = cardModelOf({ model: 'seedance_2_5', kind: 'video' })
+    const [duration] = seedance.settings
+    expect(duration === undefined ? [] : settingChoicesOf(duration)).toHaveLength(27)
+    expect(
+      settingsSummaryOf({ model: seedance, options: { duration: 12, generate_audio: false } }),
+    ).toBe('12s · 1080p · High bitrate · Audio off')
   })
 })
 

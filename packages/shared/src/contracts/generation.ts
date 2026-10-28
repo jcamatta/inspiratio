@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { IdSchema, SizeSchema, Vec2Schema } from './geometry.ts'
 import { ItemKindSchema } from './item.ts'
+import { GenerationOptionsSchema } from './models.ts'
 
 export const GenerationKindSchema = ItemKindSchema
 export type GenerationKind = z.infer<typeof GenerationKindSchema>
@@ -39,6 +40,8 @@ export const GenerationRequestSchema = z.object({
   model: z.string().nullable(),
   aspectRatio: z.string().nullable(),
   count: z.number().int().min(1).max(4),
+  /** Model settings picked on the card (resolution, quality, duration…), keyed by Higgsfield param. */
+  options: GenerationOptionsSchema.default({}),
   references: z.array(GenerationReferenceSchema),
   status: GenerationStatusSchema,
   traceId: z.string(),
@@ -73,6 +76,7 @@ export const CreateGenerationSchema = z
     model: z.string().trim().min(1).max(80).nullable().default(null),
     aspectRatio: AspectRatioSchema.default(null),
     count: z.number().int().min(1).max(4).default(1),
+    options: GenerationOptionsSchema.default({}),
     referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).default([]),
     position: Vec2Schema.optional(),
     size: SizeSchema.nullable().optional(),
@@ -92,6 +96,7 @@ export const UpdateGenerationSchema = z.object({
   model: z.string().trim().min(1).max(80).nullable().optional(),
   aspectRatio: AspectRatioSchema.optional(),
   count: z.number().int().min(1).max(4).optional(),
+  options: GenerationOptionsSchema.optional(),
   referenceItemIds: z.array(IdSchema).max(MAX_REFERENCES).optional(),
   position: Vec2Schema.optional(),
   size: SizeSchema.nullable().optional(),
@@ -161,7 +166,7 @@ export type ResolvedReference = z.infer<typeof ResolvedReferenceSchema>
 
 /** The guide an agent must follow to write the provider prompt for the resolved model. */
 export const PromptGuideSchema = z.object({
-  /** Model to generate with: the request model, or the default for its kind when it is Auto. */
+  /** Model to generate with: the request model, or the default for its kind when it has none. */
   model: z.string(),
   /** Guide file used: the model id when `prompt-guides/<model>.md` exists, otherwise "default". */
   guide: z.string(),
@@ -173,5 +178,7 @@ export type PromptGuide = z.infer<typeof PromptGuideSchema>
 export const GenerationDetailsSchema = GenerationRequestSchema.extend({
   resolvedReferences: z.array(ResolvedReferenceSchema),
   promptGuide: PromptGuideSchema,
+  /** Every setting of the resolved model (card choice or default), to pass as Higgsfield params as is. */
+  resolvedOptions: GenerationOptionsSchema,
 })
 export type GenerationDetails = z.infer<typeof GenerationDetailsSchema>

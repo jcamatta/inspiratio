@@ -270,6 +270,7 @@ describe('generation domain', () => {
         model: null,
         aspectRatio: null,
         count: 1,
+        options: {},
         referenceItemIds: ['itm_1', 'itm_x', 'itm_1'],
       },
     })
@@ -407,10 +408,12 @@ describe('generation domain', () => {
 })
 
 describe('prompt guide selection', () => {
-  it('resolves Auto to the default model of the kind and keeps a chosen model', () => {
+  it('keeps an offered model of the kind and otherwise uses the default of the kind', () => {
     expect(resolvedModelOf({ model: null, kind: 'image' })).toBe('nano_banana_pro')
-    expect(resolvedModelOf({ model: null, kind: 'video' })).toBe('kling3_0')
-    expect(resolvedModelOf({ model: 'seedream_v4_5', kind: 'image' })).toBe('seedream_v4_5')
+    expect(resolvedModelOf({ model: null, kind: 'video' })).toBe('seedance_2_5')
+    expect(resolvedModelOf({ model: 'gpt_image_2_5', kind: 'image' })).toBe('gpt_image_2_5')
+    expect(resolvedModelOf({ model: 'kling3_0', kind: 'video' })).toBe('seedance_2_5')
+    expect(resolvedModelOf({ model: 'seedance_2_5', kind: 'image' })).toBe('nano_banana_pro')
   })
 
   it('tries the model guide before the default and never builds unsafe file names', () => {

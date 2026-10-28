@@ -57,6 +57,7 @@ export const makeGeneration = (
   model: null,
   aspectRatio: null,
   count: 1,
+  options: {},
   references: [],
   status: 'pending',
   traceId: 'a'.repeat(32),
@@ -322,6 +323,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
           ...('model' in body ? { model: body.model as string | null } : {}),
           ...('aspectRatio' in body ? { aspectRatio: body.aspectRatio as string | null } : {}),
           ...(typeof body.count === 'number' ? { count: body.count } : {}),
+          ...('options' in body ? { options: body.options as GenerationRequest['options'] } : {}),
           ...(body.position === undefined
             ? {}
             : { position: body.position as GenerationRequest['position'] }),

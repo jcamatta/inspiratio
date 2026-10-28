@@ -1,6 +1,7 @@
 import {
   notFound,
   ok,
+  resolveOptions,
   type GenerationDetails,
   type GenerationRequest,
   type ListGenerationsInput,
@@ -49,7 +50,12 @@ export const createGenerationQueries = (deps: {
     )
     const model = resolvedModelOf(request)
     const guide = await deps.readPromptGuide({ model })
-    return ok({ ...request, resolvedReferences, promptGuide: { model, ...guide } })
+    return ok({
+      ...request,
+      resolvedReferences,
+      promptGuide: { model, ...guide },
+      resolvedOptions: resolveOptions({ model, options: request.options }),
+    })
   }
 
   return { list, details }

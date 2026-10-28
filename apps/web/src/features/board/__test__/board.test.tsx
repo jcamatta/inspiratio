@@ -431,32 +431,42 @@ describe('Prompt cards', () => {
     })
   })
 
-  it('changes model, aspect and variants on a draft prompt', async () => {
+  it('changes model, aspect, variants and model settings on a draft prompt', async () => {
     const api = draft()
     const { user } = renderWithApp({ ui: <AppView />, api })
     const settings = await screen.findByTestId(/^prompt-node-/)
     await user.click(within(settings).getByTestId('prompt-model'))
-    await user.click(await screen.findByRole('option', { name: 'Nano Banana Pro' }))
+    await user.click(await screen.findByRole('option', { name: 'GPT Image 2.5' }))
     await waitFor(() => {
-      expect(api.state.generations[0]?.model).toBe('nano_banana_pro')
+      expect(api.state.generations[0]?.model).toBe('gpt_image_2_5')
+    })
+    await user.click(
+      within(await screen.findByTestId(/^prompt-node-/)).getByTestId('prompt-setting-background'),
+    )
+    await user.click(await screen.findByRole('option', { name: 'Transparent' }))
+    await waitFor(() => {
+      expect(api.state.generations[0]?.options).toEqual({ background: 'transparent' })
     })
     await user.click(
       within(await screen.findByTestId(/^prompt-node-/)).getByTestId('prompt-aspect'),
     )
     await user.click(await screen.findByRole('option', { name: '16:9' }))
     await user.click(within(await screen.findByTestId(/^prompt-node-/)).getByTestId('prompt-count'))
-    await user.click(await screen.findByRole('option', { name: '2×' }))
+    await user.click(await screen.findByRole('option', { name: '2 variants' }))
     await waitFor(() => {
       expect(api.state.generations[0]).toMatchObject({ aspectRatio: '16:9', count: 2 })
     })
     await user.click(within(await screen.findByTestId(/^prompt-node-/)).getByTestId('prompt-model'))
-    await user.click(await screen.findByRole('option', { name: 'Auto' }))
+    await user.click(await screen.findByRole('option', { name: 'Nano Banana Pro' }))
+    await waitFor(() => {
+      expect(api.state.generations[0]).toMatchObject({ model: 'nano_banana_pro', options: {} })
+    })
     await user.click(
       within(await screen.findByTestId(/^prompt-node-/)).getByTestId('prompt-aspect'),
     )
     await user.click(await screen.findByRole('option', { name: 'Auto' }))
     await waitFor(() => {
-      expect(api.state.generations[0]).toMatchObject({ model: null, aspectRatio: null })
+      expect(api.state.generations[0]).toMatchObject({ aspectRatio: null })
     })
   })
 
@@ -480,13 +490,14 @@ describe('Prompt cards', () => {
     expect(await screen.findByText('Instruction copied')).toBeInTheDocument()
   })
 
-  it('switches kind, removes references and deletes prompts with undo', async () => {
+  it('shows video settings, removes references and deletes prompts with undo', async () => {
     const api = createFakeApi({
       items: [makeItem({ id: 'itm_a' }), makeItem({ id: 'itm_b', position: { x: 400, y: 0 } })],
       generations: [
         makeGeneration({
           id: 'gen_1',
           status: 'draft',
+          kind: 'video',
           prompt: '@1 and @2',
           references: [
             { itemId: 'itm_a', label: '@1' },
@@ -497,9 +508,19 @@ describe('Prompt cards', () => {
     })
     const { user } = renderWithApp({ ui: <AppView />, api })
     const card = await screen.findByTestId('prompt-node-gen_1')
-    await user.click(within(card).getByTestId('prompt-kind-video'))
+    expect(within(card).getByTestId('prompt-title')).toHaveTextContent('Video prompt')
+    await user.click(within(card).getByTestId('prompt-setting-duration'))
+    await user.click(await screen.findByRole('option', { name: '10s' }))
     await waitFor(() => {
-      expect(api.state.generations[0]?.kind).toBe('video')
+      expect(api.state.generations[0]?.options).toEqual({ duration: 10 })
+    })
+    await user.click(
+      within(await screen.findByTestId('prompt-node-gen_1')).getByTestId(
+        'prompt-setting-generate_audio',
+      ),
+    )
+    await waitFor(() => {
+      expect(api.state.generations[0]?.options).toEqual({ duration: 10, generate_audio: false })
     })
     await user.click(
       within(await screen.findByTestId('prompt-node-gen_1')).getByLabelText('Remove @1'),
@@ -541,7 +562,9 @@ describe('Prompt cards', () => {
       expect(api.state.generations).toHaveLength(0)
     })
     await user.click(within(await openMenuOn(pane())).getByTestId('menu-new-image-prompt'))
-    expect(await screen.findByTestId(/^prompt-node-/)).toHaveTextContent('Drop images here')
+    expect(await screen.findByTestId(/^prompt-node-/)).toHaveTextContent(
+      'Drop reference images here',
+    )
     expect(api.state.generations[0]?.kind).toBe('image')
     await user.click(screen.getByTestId('undo'))
     await waitFor(() => {

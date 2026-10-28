@@ -1,15 +1,30 @@
 import {
   MAX_REFERENCES,
   mediaUrlOf,
+  resolveOptions,
   type GenerationKind,
   type GenerationStatus,
   type Item,
+  type ModelSetting,
+  type ModelSpec,
 } from '@inspiratio/shared'
 import { NodeResizer } from '@xyflow/react'
 import { LineageHandles } from './LineageHandles.tsx'
 import {
   ClipboardCopy,
+  Clock,
+  Copy,
   Film,
+  Gauge,
+  Gem,
+  Layers,
+  Scan,
+  Sparkles,
+  SquareDashed,
+  Volume2,
+  VolumeX,
+  WandSparkles,
+  type LucideIcon,
   GripHorizontal,
   Image,
   CircleStop,
@@ -24,16 +39,24 @@ import { cx } from '../../../shared/lib/cx.ts'
 import {
   Box,
   Button,
+  ChipSelect,
   IconButton,
   MediaImage,
   Panel,
-  Segmented,
-  Select,
+  ToggleChip,
   Stack,
   Text,
   TextArea,
 } from '../../../shared/ui/index.ts'
-import { ASPECT_RATIOS, labelOf, type ModelOption } from '../../generation/domain/prompt.ts'
+import {
+  aspectChoicesOf,
+  AUTO_ASPECT,
+  encodeSetting,
+  labelOf,
+  modelChoicesOf,
+  settingChoicesOf,
+  settingsSummaryOf,
+} from '../../generation/domain/prompt.ts'
 import type { PromptNodeData } from '../domain/flow-mapping.ts'
 import type { PromptSettings } from './PromptNode.controller.tsx'
 
@@ -43,8 +66,7 @@ export type PromptNodeViewProps = {
   readonly brief: string
   readonly onBriefChange: (brief: string) => void
   readonly onBriefCommit: () => void
-  readonly models: readonly ModelOption[]
-  readonly model: string
+  readonly model: ModelSpec
   readonly dangling: readonly string[]
   readonly elapsed: string | null
   readonly step: string | null
@@ -70,20 +92,97 @@ const STATUS: Readonly<
   failed: { label: 'Failed', tone: 'bg-danger-surface text-danger' },
 }
 
-const KIND_OPTIONS = [
-  { value: 'image' as const, label: 'Image', icon: Image },
-  { value: 'video' as const, label: 'Video', icon: Film },
-]
+/** Image and video prompts are separate cards: their own title, icon, colour and drop hint. */
+const KIND: Readonly<
+  Record<
+    GenerationKind,
+    {
+      readonly title: string
+      readonly icon: typeof Image
+      readonly tone: string
+      readonly accent: string
+      readonly dropHint: string
+    }
+  >
+> = {
+  image: {
+    title: 'Image prompt',
+    icon: Image,
+    tone: 'text-accent',
+    accent: 'border-t-4 border-t-accent',
+    dropHint: 'Drop reference images here',
+  },
+  video: {
+    title: 'Video prompt',
+    icon: Film,
+    tone: 'text-primary',
+    accent: 'border-t-4 border-t-primary',
+    dropHint: 'Drop images or videos here',
+  },
+}
 
 const COUNT_OPTIONS = [1, 2, 3, 4].map((count) => ({
   value: String(count),
-  label: `${String(count)}×`,
+  label: count === 1 ? '1 variant' : `${String(count)} variants`,
 }))
 
-const ASPECT_OPTIONS = ASPECT_RATIOS.map((ratio) => ({
-  value: ratio,
-  label: ratio === 'auto' ? 'Auto' : ratio,
-}))
+/** Chip icon per Higgsfield param; unknown settings fall back to a generic one. */
+const SETTING_ICONS: Readonly<Record<string, LucideIcon>> = {
+  resolution: Scan,
+  quality: Gem,
+  variant: Sparkles,
+  background: Layers,
+  duration: Clock,
+  bitrate_mode: Gauge,
+}
+
+const ICON = { size: 14, strokeWidth: 1.75 } as const
+
+/** A small frame drawn in the chosen ratio, so the aspect chip shows the shape itself. */
+const AspectIcon = ({ ratio }: { readonly ratio: string }) => {
+  const [width, height] = ratio.split(':').map(Number)
+  if (width === undefined || height === undefined || !(width > 0 && height > 0))
+    return <SquareDashed {...ICON} />
+  const scale = 12 / Math.max(width, height)
+  return (
+    <Box className="flex size-3.5 items-center justify-center">
+      <Box
+        className="rounded-[2px] border-[1.5px] border-current"
+        style={{ width: width * scale, height: height * scale }}
+      />
+    </Box>
+  )
+}
+
+const SettingChip = (props: {
+  readonly setting: ModelSetting
+  readonly value: string
+  readonly onChange: (value: string) => void
+}) => {
+  const { setting } = props
+  if (setting.type === 'toggle')
+    return (
+      <ToggleChip
+        pressed={props.value === 'on'}
+        onPressedChange={(pressed) => props.onChange(pressed ? 'on' : 'off')}
+        label={setting.label}
+        onIcon={Volume2}
+        offIcon={VolumeX}
+        testId={`prompt-setting-${setting.key}`}
+      />
+    )
+  const Icon = SETTING_ICONS[setting.key] ?? Sparkles
+  return (
+    <ChipSelect
+      label={setting.label}
+      icon={<Icon {...ICON} />}
+      value={props.value}
+      options={settingChoicesOf(setting)}
+      onValueChange={props.onChange}
+      testId={`prompt-setting-${setting.key}`}
+    />
+  )
+}
 
 const Thumb = ({
   item,
@@ -129,6 +228,8 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
   const { request, references, results, dropActive } = props.data
   const isDraft = request.status === 'draft'
   const status = STATUS[request.status]
+  const kind = KIND[request.kind]
+  const options = resolveOptions({ model: props.model.id, options: request.options })
   return (
     <Panel
       testId={`prompt-node-${request.id}`}
@@ -136,6 +237,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
       data-stalled={props.stalled}
       className={cx(
         'flex size-full flex-col gap-3 p-3 transition-shadow',
+        kind.accent,
         props.selected && 'outline-3 outline-offset-3 outline-mint-700',
         dropActive && 'outline-3 outline-offset-3 outline-accent',
       )}
@@ -150,8 +252,10 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
       >
         <Stack direction="row" align="center" gap={2}>
           <GripHorizontal size={14} className="text-muted-foreground" />
-          <Bot size={14} className="text-accent" />
-          <Text variant="title">Prompt</Text>
+          <kind.icon size={14} className={kind.tone} />
+          <Text variant="title" testId="prompt-title">
+            {kind.title}
+          </Text>
         </Stack>
         <Text
           className={cx('rounded-full px-2 py-0.5 text-[11px] font-medium', status.tone)}
@@ -160,15 +264,6 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
           {status.label}
         </Text>
       </Stack>
-
-      {isDraft && (
-        <Segmented<GenerationKind>
-          value={request.kind}
-          onValueChange={(kind) => props.onSettingsChange({ kind })}
-          options={KIND_OPTIONS}
-          testId="prompt-kind"
-        />
-      )}
 
       <Box
         testId="prompt-dropzone"
@@ -179,7 +274,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
       >
         {references.length === 0 ? (
           <Text variant="caption" className="m-auto">
-            Drop images here
+            {kind.dropHint}
           </Text>
         ) : (
           [...references.entries()].map(([index, item]) => (
@@ -222,29 +317,45 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
               </Text>
             )}
           </Stack>
-          <Box className="nodrag grid grid-cols-3 gap-2">
-            <Select
+          <Stack gap={2} className="nodrag">
+            <ChipSelect
+              wide
               label="Model"
-              value={props.model}
-              options={props.models}
+              icon={<WandSparkles {...ICON} />}
+              value={props.model.id}
+              options={modelChoicesOf(request.kind)}
               onValueChange={(model) => props.onSettingsChange({ model })}
               testId="prompt-model"
             />
-            <Select
-              label="Aspect"
-              value={request.aspectRatio ?? 'auto'}
-              options={ASPECT_OPTIONS}
-              onValueChange={(aspectRatio) => props.onSettingsChange({ aspectRatio })}
-              testId="prompt-aspect"
-            />
-            <Select
-              label="Variants"
-              value={String(request.count)}
-              options={COUNT_OPTIONS}
-              onValueChange={(count) => props.onSettingsChange({ count: Number(count) })}
-              testId="prompt-count"
-            />
-          </Box>
+            <Box className="flex flex-wrap gap-1.5" testId="prompt-settings">
+              <ChipSelect
+                label="Aspect ratio"
+                icon={<AspectIcon ratio={request.aspectRatio ?? AUTO_ASPECT} />}
+                value={request.aspectRatio ?? AUTO_ASPECT}
+                options={aspectChoicesOf(props.model)}
+                onValueChange={(aspectRatio) => props.onSettingsChange({ aspectRatio })}
+                testId="prompt-aspect"
+              />
+              <ChipSelect
+                label="Variants"
+                icon={<Copy {...ICON} />}
+                value={String(request.count)}
+                options={COUNT_OPTIONS}
+                onValueChange={(count) => props.onSettingsChange({ count: Number(count) })}
+                testId="prompt-count"
+              />
+              {props.model.settings.map((setting) => (
+                <SettingChip
+                  key={setting.key}
+                  setting={setting}
+                  value={encodeSetting(options[setting.key] ?? setting.default)}
+                  onChange={(value) =>
+                    props.onSettingsChange({ option: { key: setting.key, value } })
+                  }
+                />
+              ))}
+            </Box>
+          </Stack>
           <Button
             variant="primary"
             icon={Bot}
@@ -262,9 +373,10 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
             {request.prompt}
           </Text>
           <Stack direction="row" align="center" justify="between" gap={2}>
-            <Text variant="caption">
-              {request.kind} · {request.model ?? 'auto'}
+            <Text variant="caption" testId="prompt-summary">
+              {props.model.label}
               {request.aspectRatio === null ? '' : ` · ${request.aspectRatio}`}
+              {` · ${settingsSummaryOf({ model: props.model, options: request.options })}`}
             </Text>
             {props.duration !== null && (
               <Stack direction="row" align="center" gap={1} className="shrink-0">

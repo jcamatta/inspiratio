@@ -659,7 +659,7 @@ describe('prompt guides', () => {
       .promptGuide
   }
 
-  it('picks the guide of the selected model, resolving Auto per kind', async () => {
+  it('picks the guide of the selected model, defaulting per kind', async () => {
     const { app } = createTestApp()
     expect(await guideOf({ app, body: { kind: 'image', model: null } })).toEqual({
       model: 'nano_banana_pro',
@@ -667,14 +667,34 @@ describe('prompt guides', () => {
       content: TEST_GUIDES.nano_banana_pro,
     })
     expect(await guideOf({ app, body: { kind: 'video' } })).toEqual({
-      model: 'kling3_0',
-      guide: 'kling3_0',
-      content: TEST_GUIDES.kling3_0,
+      model: 'seedance_2_5',
+      guide: 'seedance_2_5',
+      content: TEST_GUIDES.seedance_2_5,
     })
-    expect(await guideOf({ app, body: { kind: 'image', model: 'mystery_model' } })).toEqual({
-      model: 'mystery_model',
+    expect(await guideOf({ app, body: { kind: 'image', model: 'flux_3_image' } })).toEqual({
+      model: 'flux_3_image',
       guide: 'default',
       content: TEST_GUIDES.default,
+    })
+  })
+
+  it('returns every setting of the model, keeping valid card choices', async () => {
+    const { app } = createTestApp()
+    const created = await request(app)
+      .post('/api/generations')
+      .send({
+        prompt: 'Rain',
+        kind: 'video',
+        model: 'seedance_2_5',
+        options: { duration: 12, resolution: '4k', generate_audio: false },
+      })
+    const id = (created.body as { id: string }).id
+    const details = (await request(app).get(`/api/generations/${id}`)).body as GenerationDetails
+    expect(details.resolvedOptions).toEqual({
+      duration: 12,
+      resolution: '1080p',
+      bitrate_mode: 'high',
+      generate_audio: false,
     })
   })
 

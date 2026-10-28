@@ -108,7 +108,12 @@ describe('MCP tool handlers', () => {
   it('returns request details with the Higgsfield guide inside the original trace', async () => {
     const promptGuide = { model: 'nano_banana_pro', guide: 'nano_banana_pro', content: '# Guide' }
     const { handlers, calls, logs } = setup({
-      'GET /api/generations/gen_1': { ...request, resolvedReferences: [], promptGuide },
+      'GET /api/generations/gen_1': {
+        ...request,
+        resolvedReferences: [],
+        promptGuide,
+        resolvedOptions: { resolution: '2k' },
+      },
     })
     const result = await handlers.getGenerationRequest({ id: 'gen_1' })
     expect(JSON.parse(textOf(result))).toMatchObject({

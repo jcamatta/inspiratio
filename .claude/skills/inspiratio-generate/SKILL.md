@@ -18,7 +18,7 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
    (open requests by default: `pending` and `in_progress`). With several, process them oldest first and say which ones
    you are doing. Ignore `draft` requests: the user has not pressed Generate yet.
 2. **Read it.** `inspiratio.get_generation_request { id }` returns the prompt, `kind` (image | video), `model`
-   (may be null), `aspectRatio`, `count` and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`, `uploadPath`, `uploadMimeType`,
+   (may be null), `aspectRatio`, `count`, `resolvedOptions` (the model settings picked on the card) and `resolvedReferences[]` with `label` (`@1`, `@2`…), `absolutePath`, `uploadPath`, `uploadMimeType`,
    `mimeType`, `title`, `tags` and `notes`. Tags and notes explain _why_ the user picked each reference — use them.
    It also returns `promptGuide { model, guide, content }`: the model to generate with and the prompt guide for it
    (`prompt-guides/<model>.md` at the repo root, or `prompt-guides/default.md` when that model has no guide).
@@ -41,15 +41,17 @@ request_ (`draft` until Generate, then `pending`) that you fulfil with two MCP s
    - `higgsfield.media_confirm { media_ids: [...], type: "image" }` (use `"video"` for video references,
      `type: "auto"` is not valid here — confirm images and videos in separate calls).
 5. **Use the model from the request.** Generate with `promptGuide.model`, always. The server already resolved it:
-   the model the user selected, or on **Auto** `nano_banana_pro` for images and `kling3_0` for videos. Never pick
+   the model the user selected, or `nano_banana_pro` for images and `seedance_2_5` for videos when it has none. Never pick
    another model and do not call `higgsfield.models_explore` unless the guide tells you to check roles or aspect ratios.
 6. **Write the provider prompt by following the guide.** `promptGuide.content` is the prompt guide for that model:
    follow it exactly (structure, wording rules, what to avoid). Keep the user's intent and replace each label with what
    that reference contributes, e.g. `@1` → "the location from reference image 1", in the way the guide describes.
    Never invent references the user did not attach.
 7. **Generate.** `higgsfield.generate_image` (kind = image) or `higgsfield.generate_video` (kind = video) with
-   `params: { model, prompt, medias: [{ value: <media_id>, role }], aspect_ratio, count }`. Omit `aspect_ratio` when
-   the request has none. Do not set `use_unlim` unless the user asked. Wait for completion with `higgsfield.jobs_wait`
+   `params: { model, prompt, medias: [{ value: <media_id>, role }], aspect_ratio, count, ...resolvedOptions }`. Omit
+   `aspect_ratio` when the request has none. `resolvedOptions` holds the user's settings (resolution, quality, variant,
+   background, duration, bitrate_mode, generate_audio…) keyed by Higgsfield param: pass them unchanged, never override
+   them. Params the guide asks you to choose (such as `mode` for Seedance) come from the guide. Do not set `use_unlim` unless the user asked. Wait for completion with `higgsfield.jobs_wait`
    (≤ 15 s per call, repeat until terminal) and collect the result URLs.
 8. **Send the results back.** `inspiratio.complete_generation { id, results: [{ url, model }], providerPrompt, promptGuide, uploads }` — one
    entry per output, with the exact Higgsfield model id, `providerPrompt` set to the exact prompt you sent (the

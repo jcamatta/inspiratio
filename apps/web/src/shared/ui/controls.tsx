@@ -70,6 +70,103 @@ export const Select = <V extends string>({
   </BaseSelect.Root>
 )
 
+export type ChipSelectProps<V extends string> = {
+  readonly value: V
+  readonly onValueChange: (value: V) => void
+  readonly options: readonly SelectOption<V>[]
+  /** Names the setting: tooltip, accessible name and heading of the menu. */
+  readonly label: string
+  readonly icon: ReactNode
+  /** Stretches across the row, e.g. for the model. */
+  readonly wide?: boolean
+  readonly testId?: string
+}
+
+const CHIP =
+  'inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-surface px-2.5 text-xs font-medium text-foreground outline-none transition hover:border-border-strong focus-visible:ring-2 focus-visible:ring-primary/40'
+
+/** A compact pill that shows an icon and the current value; the menu opens on click. */
+export const ChipSelect = <V extends string>({
+  value,
+  onValueChange,
+  options,
+  label,
+  icon,
+  wide = false,
+  testId,
+}: ChipSelectProps<V>) => (
+  <BaseSelect.Root
+    value={value}
+    items={options}
+    onValueChange={(next) => {
+      if (next !== null) onValueChange(next)
+    }}
+  >
+    <BaseSelect.Trigger
+      data-testid={testId}
+      aria-label={label}
+      title={label}
+      className={cx(CHIP, 'data-[popup-open]:border-primary', wide && 'w-full')}
+    >
+      <span className="flex shrink-0 items-center text-muted-foreground">{icon}</span>
+      <BaseSelect.Value className="truncate" />
+    </BaseSelect.Trigger>
+    <BaseSelect.Portal>
+      <BaseSelect.Positioner className="z-50" sideOffset={6} alignItemWithTrigger={false}>
+        <BaseSelect.Popup className="max-h-72 min-w-36 overflow-y-auto rounded-xl border border-border bg-panel p-1 text-sm shadow-(--shadow-panel) outline-none">
+          <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {label}
+          </div>
+          {options.map((option) => (
+            <BaseSelect.Item
+              key={option.value}
+              value={option.value}
+              className="flex cursor-default items-center gap-2 rounded-lg px-2 py-1.5 outline-none select-none data-[highlighted]:bg-surface"
+            >
+              <BaseSelect.ItemIndicator className="w-3.5">
+                <Check size={14} />
+              </BaseSelect.ItemIndicator>
+              <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
+            </BaseSelect.Item>
+          ))}
+        </BaseSelect.Popup>
+      </BaseSelect.Positioner>
+    </BaseSelect.Portal>
+  </BaseSelect.Root>
+)
+
+/** An on/off pill with a different icon per state, e.g. sound on and muted. */
+export const ToggleChip = ({
+  pressed,
+  onPressedChange,
+  label,
+  onIcon,
+  offIcon,
+  testId,
+}: {
+  readonly pressed: boolean
+  readonly onPressedChange: (pressed: boolean) => void
+  readonly label: string
+  readonly onIcon: LucideIcon
+  readonly offIcon: LucideIcon
+  readonly testId?: string
+}) => {
+  const Icon = pressed ? onIcon : offIcon
+  return (
+    <BaseToggle
+      pressed={pressed}
+      onPressedChange={onPressedChange}
+      aria-label={label}
+      title={`${label} ${pressed ? 'on' : 'off'}`}
+      data-testid={testId}
+      className={cx(CHIP, !pressed && 'text-muted-foreground')}
+    >
+      <Icon size={14} strokeWidth={1.75} className="shrink-0" />
+      {label}
+    </BaseToggle>
+  )
+}
+
 export type SliderProps = {
   readonly value: number
   readonly max: number

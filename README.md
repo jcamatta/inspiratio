@@ -132,8 +132,19 @@ fulfil requests from your own Claude session instead.
 
 1. Make sure the Higgsfield MCP is connected in Claude Code. This repo's `.mcp.json` registers the `inspiratio` MCP server.
 2. In the app, right-click references → **Generate image** / **Generate video** (or right-click the canvas → **New image prompt** /
-   **New video prompt** and drop images onto the card). Write the brief, pick the kind, model (**Auto** by default), aspect and variants, and
-   press **Generate**. An instruction is copied to your clipboard.
+   **New video prompt** and drop images onto the card). Image and video prompts are separate cards. Write the brief, pick
+   the model, aspect, variants and that model's settings, and press **Generate**. An instruction is copied to your clipboard.
+
+   | Card  | Models                        | Settings                                                                                                        |
+   | ----- | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
+   | Image | **Nano Banana Pro** (default) | Resolution 1k / 2k / 4k                                                                                         |
+   | Image | **GPT Image 2.5**             | Variant Flare / Sunburst · Quality low → max · Resolution 1k / 2k / 4k · Background auto / opaque / transparent |
+   | Image | **FLUX 3**                    | Resolution 768sq → 4k                                                                                           |
+   | Video | **Seedance 2.5**              | Duration 4–30 s · Quality 480p / 720p / 1080p · Bitrate standard / high · Audio on / off                        |
+
+   Each model has a prompt guide in `prompt-guides/` written from the provider's official docs; the agent follows it
+   to turn your brief into the prompt it sends.
+
 3. Paste it into Claude Code in this folder, for example
    _"Use the inspiratio-generate skill to fulfil Inspiratio generation request gen_…"_.
    The skill (`.claude/skills/inspiratio-generate`) uploads the references, generates with Higgsfield and imports the result.

@@ -1,4 +1,17 @@
-import { MAX_REFERENCES, type GenerationKind, type GenerationRequest } from '@inspiratio/shared'
+import {
+  DEFAULT_MODEL_SPECS,
+  MAX_REFERENCES,
+  modelSpecOf,
+  modelsOfKind,
+  resolveOptions,
+  type GenerationKind,
+  type GenerationOptions,
+  type GenerationRequest,
+  type ModelSetting,
+  type ModelSpec,
+  type OptionValue,
+  type SettingChoice,
+} from '@inspiratio/shared'
 
 export const labelOf = (index: number): string => `@${index + 1}`
 
@@ -82,40 +95,90 @@ export const danglingTokens = (params: {
     return number < 1 || number > params.referenceCount
   })
 
-export type ModelOption = {
-  readonly value: string
-  readonly label: string
-  readonly kind: GenerationKind | 'any'
+/** The model a card generates with: its own when still offered for its kind, else the kind default. */
+export const cardModelOf = (params: {
+  readonly model: string | null
+  readonly kind: GenerationKind
+}): ModelSpec => {
+  const own = params.model === null ? undefined : modelSpecOf(params.model)
+  return own?.kind === params.kind ? own : DEFAULT_MODEL_SPECS[params.kind]
 }
 
-export const AUTO_MODEL = 'auto'
+export const modelChoicesOf = (kind: GenerationKind): SettingChoice[] =>
+  modelsOfKind(kind).map((model) => ({ value: model.id, label: model.label }))
 
-/** Auto resolves to nano_banana_pro (image) or kling3_0 (video); each model has its guide in prompt-guides/. */
-export const MODEL_OPTIONS: readonly ModelOption[] = [
-  { value: AUTO_MODEL, label: 'Auto', kind: 'any' },
-  { value: 'nano_banana_pro', label: 'Nano Banana Pro', kind: 'image' },
-  { value: 'gpt_image_2_5', label: 'GPT Image 2.5', kind: 'image' },
-  { value: 'seedream_v4_5', label: 'Seedream 4.5', kind: 'image' },
-  { value: 'soul_2', label: 'Higgsfield Soul 2', kind: 'image' },
-  { value: 'seedance_2_5', label: 'Seedance 2.5', kind: 'video' },
-  { value: 'kling3_0', label: 'Kling 3.0', kind: 'video' },
-  { value: 'minimax_h3', label: 'MiniMax H3', kind: 'video' },
+export const AUTO_ASPECT = 'auto'
+
+/** "Auto" leaves the ratio to the model (the param is omitted), then the ratios the model accepts. */
+export const aspectChoicesOf = (model: ModelSpec): SettingChoice[] => [
+  { value: AUTO_ASPECT, label: 'Auto' },
+  ...model.aspectRatios
+    .filter((ratio) => ratio !== AUTO_ASPECT)
+    .map((ratio) => ({ value: ratio, label: ratio })),
 ]
 
-export const modelsFor = (kind: GenerationKind): ModelOption[] =>
-  MODEL_OPTIONS.filter((option) => option.kind === 'any' || option.kind === kind)
+/** Switching model resets its settings to the new defaults and drops a ratio it does not accept. */
+export const modelChangePatch = (params: {
+  readonly aspectRatio: string | null
+  readonly model: string
+}): { model: string; options: GenerationOptions; aspectRatio: string | null } => ({
+  model: params.model,
+  options: {},
+  aspectRatio:
+    params.aspectRatio !== null &&
+    modelSpecOf(params.model)?.aspectRatios.includes(params.aspectRatio)
+      ? params.aspectRatio
+      : null,
+})
 
-export const ASPECT_RATIOS = [
-  'auto',
-  '16:9',
-  '9:16',
-  '1:1',
-  '4:3',
-  '3:4',
-  '21:9',
-  '2:3',
-  '3:2',
-] as const
+const ON = 'on'
+const OFF = 'off'
+
+/** Choices of a card control; numbers become one choice per whole value, toggles On/Off. */
+export const settingChoicesOf = (setting: ModelSetting): SettingChoice[] => {
+  if (setting.type === 'select') return [...setting.choices]
+  if (setting.type === 'toggle')
+    return [
+      { value: ON, label: 'On' },
+      { value: OFF, label: 'Off' },
+    ]
+  return [...Array(setting.max - setting.min + 1).keys()].map((index) => {
+    const value = String(setting.min + index)
+    return { value, label: `${value}${setting.unit}` }
+  })
+}
+
+export const encodeSetting = (value: OptionValue): string =>
+  typeof value === 'boolean' ? (value ? ON : OFF) : String(value)
+
+export const decodeSetting = (params: {
+  readonly setting: ModelSetting
+  readonly value: string
+}): OptionValue => {
+  if (params.setting.type === 'toggle') return params.value === ON
+  if (params.setting.type === 'number') return Number(params.value)
+  return params.value
+}
+
+/** Short line of the card settings for a queued card, e.g. "1080p · 5s · Audio on". */
+export const settingsSummaryOf = (params: {
+  readonly model: ModelSpec
+  readonly options: GenerationOptions
+}): string => {
+  const resolved = resolveOptions({ model: params.model.id, options: params.options })
+  return params.model.settings
+    .map((setting) => {
+      const value = resolved[setting.key]
+      if (value === undefined) return ''
+      if (setting.type === 'toggle') return `${setting.label} ${value === true ? 'on' : 'off'}`
+      return (
+        settingChoicesOf(setting).find((choice) => choice.value === encodeSetting(value))?.label ??
+        encodeSetting(value)
+      )
+    })
+    .filter((part) => part !== '')
+    .join(' · ')
+}
 
 export const STALLED_AFTER_MS = 10 * 60 * 1000
 

@@ -1,6 +1,8 @@
 import {
+  DEFAULT_MODELS,
   err,
   mediaUrlOf,
+  modelSpecOf,
   ok,
   type CreateGenerationCommand,
   type GenerationKind,
@@ -37,6 +39,7 @@ export const createGenerationRequest = (params: {
   model: params.input.model,
   aspectRatio: params.input.aspectRatio,
   count: params.input.count,
+  options: params.input.options,
   references: labelReferences(params.input.referenceItemIds),
   status: params.input.submit ? 'pending' : 'draft',
   traceId: params.traceId,
@@ -54,12 +57,6 @@ export const createGenerationRequest = (params: {
 
 export const CARD_SIZE = { width: 340, height: 420 } as const
 
-/** Model used when the request is on Auto (model null). */
-export const DEFAULT_MODELS: Readonly<Record<GenerationKind, string>> = {
-  image: 'nano_banana_pro',
-  video: 'kling3_0',
-}
-
 export const DEFAULT_GUIDE = 'default'
 
 const GUIDE_ID = /^[a-z0-9][a-z0-9_.-]*$/i
@@ -67,7 +64,10 @@ const GUIDE_ID = /^[a-z0-9][a-z0-9_.-]*$/i
 export const resolvedModelOf = (params: {
   readonly model: string | null
   readonly kind: GenerationKind
-}): string => params.model ?? DEFAULT_MODELS[params.kind]
+}): string =>
+  params.model !== null && modelSpecOf(params.model)?.kind === params.kind
+    ? params.model
+    : DEFAULT_MODELS[params.kind]
 
 /** Guides to try in order: the model's own, then the default. Ids unsafe as file names skip to the default. */
 export const guideCandidatesOf = (params: { readonly model: string }): string[] =>
@@ -89,6 +89,7 @@ export const updateDraft = (params: {
     content.model,
     content.aspectRatio,
     content.count,
+    content.options,
     referenceItemIds,
   ].some((value) => value !== undefined)
   if (editsContent && params.request.status !== 'draft')
@@ -104,6 +105,7 @@ export const updateDraft = (params: {
     aspectRatio:
       content.aspectRatio === undefined ? params.request.aspectRatio : content.aspectRatio,
     count: content.count ?? params.request.count,
+    options: content.options ?? params.request.options,
     references:
       referenceItemIds === undefined
         ? params.request.references

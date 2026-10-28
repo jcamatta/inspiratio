@@ -1,14 +1,15 @@
-import type { GenerationKind } from '@inspiratio/shared'
 import { useReactFlow, type NodeProps } from '@xyflow/react'
 import { useEffect, useState } from 'react'
 import { notify } from '../../../shared/ui/index.ts'
 import {
-  AUTO_MODEL,
+  AUTO_ASPECT,
+  cardModelOf,
   claudeInstruction,
   danglingTokens,
+  decodeSetting,
   formatElapsed,
   isStalled,
-  modelsFor,
+  modelChangePatch,
 } from '../../generation/domain/prompt.ts'
 import { currentStep, runDuration } from '../../generation/domain/steps.ts'
 import { isActive, useGenerationCommands } from '../../generation/generation.hooks.ts'
@@ -17,10 +18,11 @@ import type { PromptFlowNode, PromptNodeData } from '../domain/flow-mapping.ts'
 import { PromptNodeView } from './PromptNode.view.tsx'
 
 export type PromptSettings = {
-  readonly kind?: GenerationKind
   readonly model?: string
   readonly aspectRatio?: string
   readonly count?: number
+  /** A model setting changed on the card: its Higgsfield param and the chosen value as listed. */
+  readonly option?: { readonly key: string; readonly value: string }
 }
 
 const copyInstruction = async (id: string): Promise<boolean> =>
@@ -78,6 +80,28 @@ const PromptCard = ({
   }
 
   const dangling = danglingTokens({ prompt: brief, referenceCount: data.references.length })
+  const model = cardModelOf(request)
+
+  const patchOf = (settings: PromptSettings) => {
+    const setting = model.settings.find((candidate) => candidate.key === settings.option?.key)
+    return {
+      ...(settings.model === undefined
+        ? {}
+        : modelChangePatch({ aspectRatio: request.aspectRatio, model: settings.model })),
+      ...(settings.aspectRatio === undefined
+        ? {}
+        : { aspectRatio: settings.aspectRatio === AUTO_ASPECT ? null : settings.aspectRatio }),
+      ...(settings.count === undefined ? {} : { count: settings.count }),
+      ...(setting === undefined || settings.option === undefined
+        ? {}
+        : {
+            options: {
+              ...request.options,
+              [setting.key]: decodeSetting({ setting, value: settings.option.value }),
+            },
+          }),
+    }
+  }
 
   return (
     <PromptNodeView
@@ -88,8 +112,7 @@ const PromptCard = ({
       onBriefCommit={() => {
         void saveBrief()
       }}
-      models={modelsFor(request.kind)}
-      model={request.model ?? AUTO_MODEL}
+      model={model}
       dangling={dangling}
       stalled={isStalled({ request, now })}
       onCancel={() => {
@@ -102,19 +125,7 @@ const PromptCard = ({
       duration={active ? null : runDuration(request)}
       canGenerate={brief.trim() !== '' && dangling.length === 0}
       onSettingsChange={(settings: PromptSettings) => {
-        void generations.update({
-          id: request.id,
-          patch: {
-            ...(settings.kind === undefined ? {} : { kind: settings.kind, model: null }),
-            ...(settings.model === undefined
-              ? {}
-              : { model: settings.model === AUTO_MODEL ? null : settings.model }),
-            ...(settings.aspectRatio === undefined
-              ? {}
-              : { aspectRatio: settings.aspectRatio === 'auto' ? null : settings.aspectRatio }),
-            ...(settings.count === undefined ? {} : { count: settings.count }),
-          },
-        })
+        void generations.update({ id: request.id, patch: patchOf(settings) })
       }}
       onRemoveReference={(itemId) => {
         actions.removePromptReference({ promptId: request.id, itemId })

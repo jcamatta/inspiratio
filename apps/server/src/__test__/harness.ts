@@ -24,7 +24,7 @@ export const NOW = '2026-10-27T10:00:00.000Z'
 
 export const TEST_GUIDES = {
   nano_banana_pro: '# Nano Banana Pro guide',
-  kling3_0: '# Kling 3.0 guide',
+  seedance_2_5: '# Seedance 2.5 guide',
   default: '# Default guide',
 } as const
 
