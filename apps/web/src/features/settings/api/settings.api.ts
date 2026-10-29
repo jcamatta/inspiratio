@@ -16,4 +16,13 @@ export const settingsApi = {
       schema: z.undefined(),
       trace: params.trace,
     }),
+
+  revealFile: (params: { readonly fileName: string; readonly trace?: TraceContext }) =>
+    http.request({
+      method: 'POST',
+      path: '/api/storage/reveal',
+      body: { fileName: params.fileName },
+      schema: z.undefined(),
+      trace: params.trace,
+    }),
 }

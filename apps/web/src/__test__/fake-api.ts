@@ -144,7 +144,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
     if (resource === 'logs') return noContent()
     if (resource === 'storage' && method === 'GET')
       return json({ body: { media: 'D:/data/media', trash: 'D:/data/trash' } })
-    if (resource === 'storage' && id === 'open') return noContent()
+    if (resource === 'storage' && (id === 'open' || id === 'reveal')) return noContent()
     if (resource === 'board' && method === 'GET')
       return json({ body: { items: state.items, tags: state.tags, sections: state.sections } })
     if (resource === 'generations' && method === 'GET' && id === undefined)

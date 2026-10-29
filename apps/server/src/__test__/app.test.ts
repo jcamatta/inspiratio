@@ -471,6 +471,20 @@ describe('storage folders', () => {
     expect(response.status).toBe(502)
     expect(logs.some((record) => record.msg === 'storage.open_failed')).toBe(true)
   })
+
+  it('reveals a media file in its folder', async () => {
+    const { app, opened } = createTestApp()
+    await request(app).post('/api/storage/reveal').send({ fileName: 'itm_1.png' }).expect(204)
+    await request(app).post('/api/storage/reveal').send({}).expect(400)
+    expect(opened).toEqual(['/memory/media/itm_1.png'])
+  })
+
+  it('reports when the file cannot be revealed', async () => {
+    const { app, logs } = createTestApp({ openFails: true })
+    const response = await request(app).post('/api/storage/reveal').send({ fileName: 'a.png' })
+    expect(response.status).toBe(502)
+    expect(logs.some((record) => record.msg === 'storage.reveal_failed')).toBe(true)
+  })
 })
 
 describe('generation runs', () => {

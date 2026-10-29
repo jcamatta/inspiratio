@@ -1,4 +1,4 @@
-import { OpenFolderSchema } from '@inspiratio/shared'
+import { OpenFolderSchema, RevealFileSchema } from '@inspiratio/shared'
 import { withBody, withRequest } from '../../../shared/http/handlers.ts'
 import type { Route } from '../../../shared/http/http.types.ts'
 import { json, noContent } from '../../../shared/http/responses.ts'
@@ -19,6 +19,15 @@ export const storageRoutes = (params: {
     handler: withBody({
       schema: OpenFolderSchema,
       run: ({ body }) => params.commands.open(body),
+      onOk: noContent,
+    }),
+  },
+  {
+    method: 'post',
+    path: '/api/storage/reveal',
+    handler: withBody({
+      schema: RevealFileSchema,
+      run: ({ body }) => params.commands.reveal(body),
       onOk: noContent,
     }),
   },

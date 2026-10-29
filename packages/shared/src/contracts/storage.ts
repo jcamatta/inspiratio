@@ -12,3 +12,6 @@ export type StorageInfo = z.infer<typeof StorageInfoSchema>
 
 export const OpenFolderSchema = z.object({ folder: StorageFolderSchema })
 export type OpenFolder = z.infer<typeof OpenFolderSchema>
+
+export const RevealFileSchema = z.object({ fileName: z.string().min(1) })
+export type RevealFile = z.infer<typeof RevealFileSchema>

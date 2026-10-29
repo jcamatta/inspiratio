@@ -6,6 +6,8 @@ import {
   Dialog,
   Disclosure,
   ExternalLink,
+  IconButton,
+  LinkButton,
   ScrollArea,
   Separator,
   Stack,
@@ -27,10 +29,42 @@ export type DetailsViewProps = {
   readonly filePath: string | null
   readonly onCopyPrompt: (prompt: string) => void
   readonly onCopyPath: (path: string) => void
+  /** Opens the file manager on the media folder with this file selected. */
+  readonly onRevealFile: () => void
   /** Null for videos: the clipboard only takes still images. */
   readonly onCopyImage: (() => void) | null
   readonly onClose: () => void
 }
+
+/** Clicking the path shows the file in its folder; the icon copies it. */
+const PathRow = (props: {
+  readonly path: string
+  readonly onReveal: () => void
+  readonly onCopy: (path: string) => void
+}) => (
+  <Stack direction="row" justify="between" align="center" gap={3}>
+    <Text variant="caption" className="shrink-0">
+      Path
+    </Text>
+    <Stack direction="row" align="center" gap={1} className="min-w-0">
+      <LinkButton
+        truncateStart
+        title={`${props.path}\nShow in folder`}
+        onClick={props.onReveal}
+        testId="details-path"
+      >
+        {props.path}
+      </LinkButton>
+      <IconButton
+        icon={Copy}
+        label="Copy path"
+        size="sm"
+        onClick={() => props.onCopy(props.path)}
+        testId="details-copy-path"
+      />
+    </Stack>
+  </Stack>
+)
 
 export const DetailsView = (props: DetailsViewProps) => {
   const generation = props.item.metadata.generation
@@ -154,26 +188,14 @@ export const DetailsView = (props: DetailsViewProps) => {
                 )}
               </Stack>
             ))}
+            {props.filePath !== null && (
+              <PathRow
+                path={props.filePath}
+                onReveal={props.onRevealFile}
+                onCopy={props.onCopyPath}
+              />
+            )}
           </Stack>
-          {props.filePath !== null && (
-            <Stack gap={2}>
-              <Text variant="caption">Path</Text>
-              <Box className="rounded-lg bg-background p-2.5">
-                <Text variant="mono" className="break-all select-text" testId="details-path">
-                  {props.filePath}
-                </Text>
-              </Box>
-              <Button
-                size="sm"
-                icon={Copy}
-                onClick={() => {
-                  if (props.filePath !== null) props.onCopyPath(props.filePath)
-                }}
-              >
-                Copy path
-              </Button>
-            </Stack>
-          )}
         </Stack>
       </ScrollArea>
     </Dialog>

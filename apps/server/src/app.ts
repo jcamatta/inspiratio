@@ -20,7 +20,7 @@ import {
 import { storageRoutes } from './features/storage/http/storage.routes.ts'
 import type { AgentRunner } from './shared/agent/agent-runner.ts'
 import type { UploadPreparer } from './shared/media/upload-copy.ts'
-import type { FolderOpener } from './shared/system/folder-opener.ts'
+import type { FileRevealer, FolderOpener } from './shared/system/folder-opener.ts'
 import { createExpressApp } from './shared/http/express-adapter.ts'
 import { withRequest } from './shared/http/handlers.ts'
 import type { Route } from './shared/http/http.types.ts'
@@ -29,6 +29,7 @@ import { json } from './shared/http/responses.ts'
 export type AppDeps = ItemDeps & {
   readonly webDistDir: string | null
   readonly openFolder: FolderOpener
+  readonly revealFile: FileRevealer
   readonly prepareUpload: UploadPreparer
   /** Starts an agent for each queued generation; null leaves requests for a manual Claude session. */
   readonly runAgent: AgentRunner | null

@@ -113,6 +113,11 @@ export const createTestDeps = (params?: {
       opened.push(path)
       return Promise.resolve()
     },
+    revealFile: (path) => {
+      if (params?.openFails === true) return Promise.reject(new Error('no file manager'))
+      opened.push(path)
+      return Promise.resolve()
+    },
   }
   return { deps, storage, opened, agentRuns, logs: logs.records }
 }

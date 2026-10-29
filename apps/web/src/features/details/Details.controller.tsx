@@ -1,6 +1,7 @@
 import type { Item } from '@inspiratio/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useCommand } from '../../shared/api/use-command.ts'
 import { notify } from '../../shared/ui/index.ts'
 import { useBoardCommands } from '../board/board.hooks.ts'
 import { runDuration, stepRows } from '../generation/domain/steps.ts'
@@ -22,6 +23,12 @@ const DetailsContent = ({
   const [notes, setNotes] = useState(item.metadata.notes)
   const [now] = useState(() => Date.now())
   const storage = useQuery({ queryKey: [STORAGE_QUERY_KEY], queryFn: settingsApi.fetchStorage })
+  const revealFile = useCommand({
+    name: 'storage.reveal',
+    call: settingsApi.revealFile,
+    invalidate: [],
+    errorTitle: 'Could not show the file',
+  })
   const requestId = item.metadata.generation?.requestId
   const request = requests.find((candidate) => candidate.id === requestId)
   return (
@@ -53,6 +60,7 @@ const DetailsContent = ({
           notify({ title: 'Path copied', tone: 'success' })
         })
       }}
+      onRevealFile={() => void revealFile({ fileName: item.media.fileName })}
       onCopyImage={
         item.kind === 'image'
           ? () => {

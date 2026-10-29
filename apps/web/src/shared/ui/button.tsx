@@ -108,3 +108,29 @@ export const IconButton = ({
     </BaseButton>
   </Tooltip>
 )
+
+export type LinkButtonProps = Omit<ComponentProps<typeof BaseButton>, 'className' | 'children'> & {
+  readonly children: string
+  /** Cuts overflow at the start instead of the end, so a path keeps its file name visible. */
+  readonly truncateStart?: boolean
+  readonly testId?: string
+}
+
+/** A button that reads as an inline link, for actions on a value shown in a list. */
+export const LinkButton = ({
+  children,
+  truncateStart = false,
+  testId,
+  ...props
+}: LinkButtonProps) => (
+  <BaseButton
+    data-testid={testId}
+    className={cx(
+      'min-w-0 cursor-pointer truncate text-xs text-link underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-input',
+      truncateStart && '[direction:rtl]',
+    )}
+    {...props}
+  >
+    {truncateStart ? <bdi>{children}</bdi> : children}
+  </BaseButton>
+)

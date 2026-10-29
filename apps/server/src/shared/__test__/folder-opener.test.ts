@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSystemFolderOpener } from '../system/folder-opener.ts'
+import { createSystemFileRevealer, createSystemFolderOpener } from '../system/folder-opener.ts'
 
 const spawned = vi.hoisted(() => ({ calls: [] as unknown[][], fail: false }))
 
@@ -27,6 +27,17 @@ describe('system folder opener', () => {
     await createSystemFolderOpener('darwin')('/media')
     await createSystemFolderOpener('linux')('/media')
     expect(spawned.calls.map((call) => call[0])).toEqual(['explorer', 'open', 'xdg-open'])
+  })
+
+  it('selects the file in the file manager of each platform', async () => {
+    await createSystemFileRevealer('win32')('C:/media/a b.png')
+    await createSystemFileRevealer('darwin')('/media/a.png')
+    await createSystemFileRevealer('linux')('/media/a.png')
+    expect(spawned.calls.map((call) => [call[0], call[1]])).toEqual([
+      ['explorer', ['/select,"C:/media/a b.png"']],
+      ['open', ['-R', '/media/a.png']],
+      ['xdg-open', ['/media']],
+    ])
   })
 
   it('rejects when the command cannot start', async () => {
