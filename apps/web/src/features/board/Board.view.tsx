@@ -14,6 +14,7 @@ import {
 import {
   ArrowDownToLine,
   ArrowUpToLine,
+  Copy,
   Expand,
   Film,
   Group,
@@ -70,6 +71,8 @@ export type BoardMenu = {
   readonly onAddTags: () => void
   readonly onView: () => void
   readonly onDetails: () => void
+  /** Null unless the right-clicked item is an image. */
+  readonly onCopyImage: (() => void) | null
   readonly onBringToFront: () => void
   readonly onSendToBack: () => void
   readonly onDetach: () => void
@@ -165,6 +168,14 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
           onSelect={menu.onDetails}
           testId="menu-details"
         />
+        {menu.onCopyImage !== null && (
+          <ContextMenuItem
+            label="Copy image"
+            icon={Copy}
+            onSelect={menu.onCopyImage}
+            testId="menu-copy-image"
+          />
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           label="Bring to front"

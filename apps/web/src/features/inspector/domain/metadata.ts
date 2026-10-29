@@ -34,6 +34,15 @@ export const hostOf = (url: string): string => {
   }
 }
 
+/** Joins with the separator the storage directory already uses, so Windows paths stay native. */
+export const mediaPathOf = (params: {
+  readonly directory: string
+  readonly fileName: string
+}): string => {
+  const separator = params.directory.includes('\\') ? '\\' : '/'
+  return `${params.directory.replace(/[\\/]+$/, '')}${separator}${params.fileName}`
+}
+
 /** Read-only facts shown in the inspector, in display order. */
 export const metadataRows = (item: Item): MetadataRow[] => {
   const { media, metadata } = item

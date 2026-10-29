@@ -89,4 +89,43 @@ describe('Details', () => {
     expect(screen.queryByTestId('details-steps')).not.toBeInTheDocument()
     expect(screen.queryByTestId('details-prompt-guide')).not.toBeInTheDocument()
   })
+
+  it('shows the full path of the file on disk and copies it', async () => {
+    const { user } = renderWithApp({
+      ui: <Details item={base} onClose={vi.fn()} />,
+      api: createFakeApi({ items: [base] }),
+    })
+    const copy = vi.spyOn(navigator.clipboard, 'writeText')
+    expect(await screen.findByTestId('details-path')).toHaveTextContent('D:/data/media/itm_g.png')
+    await user.click(screen.getByRole('button', { name: 'Copy path' }))
+    expect(copy).toHaveBeenCalledWith('D:/data/media/itm_g.png')
+  })
+
+  it('copies the image itself to the clipboard', async () => {
+    const write = vi.fn(() => Promise.resolve())
+    Object.assign(navigator.clipboard, { write })
+    vi.stubGlobal(
+      'ClipboardItem',
+      vi.fn(function ClipboardItemStub(items: Record<string, Promise<Blob>>) {
+        // The fake API serves no media bytes; only the clipboard hand-off is under test.
+        for (const blob of Object.values(items)) blob.catch(() => undefined)
+        return { types: Object.keys(items) }
+      }),
+    )
+    const { user } = renderWithApp({
+      ui: <Details item={base} onClose={vi.fn()} />,
+      api: createFakeApi({ items: [base] }),
+    })
+    await user.click(screen.getByRole('button', { name: 'Copy image' }))
+    expect(write).toHaveBeenCalledWith([{ types: ['image/png'] }])
+  })
+
+  it('offers no image copy for videos', () => {
+    const video = makeItem({ id: 'itm_v', kind: 'video' })
+    renderWithApp({
+      ui: <Details item={video} onClose={vi.fn()} />,
+      api: createFakeApi({ items: [video] }),
+    })
+    expect(screen.queryByRole('button', { name: 'Copy image' })).not.toBeInTheDocument()
+  })
 })

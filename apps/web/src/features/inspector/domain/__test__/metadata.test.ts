@@ -10,7 +10,7 @@ import {
   splitSelection,
   toChipOptions,
 } from '../../../tags/domain/tag-options.ts'
-import { formatBytes, formatDate, hostOf, metadataRows } from '../metadata.ts'
+import { formatBytes, formatDate, hostOf, mediaPathOf, metadataRows } from '../metadata.ts'
 
 describe('metadata', () => {
   it('formats bytes, dates and hosts', () => {
@@ -21,6 +21,15 @@ describe('metadata', () => {
     expect(formatDate('2026-10-27T10:00:00.000Z')).toMatch(/2026/)
     expect(hostOf('https://www.pinterest.com/pin/1')).toBe('pinterest.com')
     expect(hostOf('bad')).toBe('bad')
+  })
+
+  it('joins media paths with the separator of the storage directory', () => {
+    expect(mediaPathOf({ directory: 'C:\\data\\media\\', fileName: 'a.png' })).toBe(
+      'C:\\data\\media\\a.png',
+    )
+    expect(mediaPathOf({ directory: '/home/me/media', fileName: 'a.png' })).toBe(
+      '/home/me/media/a.png',
+    )
   })
 
   it('lists rows, including optional source and file name', () => {

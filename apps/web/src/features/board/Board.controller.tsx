@@ -16,6 +16,7 @@ import {
   type MouseEvent,
 } from 'react'
 import { notify } from '../../shared/ui/index.ts'
+import { copyItemImage } from '../details/copy-image.ts'
 import { useGenerationNotifications, useGenerationsQuery } from '../generation/generation.hooks.ts'
 import { useHistory } from '../history/history.context.ts'
 import { useWorkspace } from '../workspace/workspace.context.ts'
@@ -270,6 +271,10 @@ export const Board = () => {
     },
   }
 
+  const menuImage =
+    menuTarget.kind === 'item'
+      ? board.items.find((item) => item.id === menuTarget.id && item.kind === 'image')
+      : undefined
   const menu: BoardMenu = {
     target: menuTarget,
     targetCount: targetIds.length,
@@ -298,6 +303,7 @@ export const Board = () => {
     onDetails: () => {
       if (menuTarget.kind === 'item') dispatch({ type: 'detailsOpened', itemId: menuTarget.id })
     },
+    onCopyImage: menuImage === undefined ? null : () => copyItemImage(menuImage),
     onBringToFront: () => {
       actions.setZIndex({ ids: targetIds, zIndex: frontZIndex(board.items) })
     },

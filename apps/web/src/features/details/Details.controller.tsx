@@ -1,9 +1,13 @@
 import type { Item } from '@inspiratio/shared'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { notify } from '../../shared/ui/index.ts'
 import { useBoardCommands } from '../board/board.hooks.ts'
 import { runDuration, stepRows } from '../generation/domain/steps.ts'
 import { useGenerationsQuery } from '../generation/generation.hooks.ts'
+import { mediaPathOf } from '../inspector/domain/metadata.ts'
+import { settingsApi, STORAGE_QUERY_KEY } from '../settings/api/settings.api.ts'
+import { copyItemImage } from './copy-image.ts'
 import { DetailsView } from './Details.view.tsx'
 
 const DetailsContent = ({
@@ -17,6 +21,7 @@ const DetailsContent = ({
   const { requests } = useGenerationsQuery()
   const [notes, setNotes] = useState(item.metadata.notes)
   const [now] = useState(() => Date.now())
+  const storage = useQuery({ queryKey: [STORAGE_QUERY_KEY], queryFn: settingsApi.fetchStorage })
   const requestId = item.metadata.generation?.requestId
   const request = requests.find((candidate) => candidate.id === requestId)
   return (
@@ -33,11 +38,28 @@ const DetailsContent = ({
         if (notes !== item.metadata.notes)
           void commands.updateItem({ id: item.id, patch: { notes } })
       }}
+      filePath={
+        storage.data === undefined
+          ? null
+          : mediaPathOf({ directory: storage.data.media, fileName: item.media.fileName })
+      }
       onCopyPrompt={(prompt) => {
         void navigator.clipboard.writeText(prompt).then(() => {
           notify({ title: 'Prompt copied', tone: 'success' })
         })
       }}
+      onCopyPath={(path) => {
+        void navigator.clipboard.writeText(path).then(() => {
+          notify({ title: 'Path copied', tone: 'success' })
+        })
+      }}
+      onCopyImage={
+        item.kind === 'image'
+          ? () => {
+              copyItemImage(item)
+            }
+          : null
+      }
       onClose={onClose}
     />
   )

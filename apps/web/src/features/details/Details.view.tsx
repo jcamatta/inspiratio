@@ -1,5 +1,5 @@
 import type { Item } from '@inspiratio/shared'
-import { Copy, Bot } from 'lucide-react'
+import { Copy, Bot, Image as ImageIcon } from 'lucide-react'
 import {
   Box,
   Button,
@@ -23,7 +23,12 @@ export type DetailsViewProps = {
   readonly notes: string
   readonly onNotesChange: (notes: string) => void
   readonly onNotesCommit: () => void
+  /** Absolute path of the media file on disk, once the storage directory is known. */
+  readonly filePath: string | null
   readonly onCopyPrompt: (prompt: string) => void
+  readonly onCopyPath: (path: string) => void
+  /** Null for videos: the clipboard only takes still images. */
+  readonly onCopyImage: (() => void) | null
   readonly onClose: () => void
 }
 
@@ -51,6 +56,11 @@ export const DetailsView = (props: DetailsViewProps) => {
             placeholder="Lighting, lens, palette, mood…"
             testId="details-notes"
           />
+          {props.onCopyImage !== null && (
+            <Button size="sm" icon={ImageIcon} onClick={props.onCopyImage}>
+              Copy image
+            </Button>
+          )}
           {generation !== null && (
             <Stack gap={2}>
               <Stack direction="row" align="center" gap={2}>
@@ -145,6 +155,25 @@ export const DetailsView = (props: DetailsViewProps) => {
               </Stack>
             ))}
           </Stack>
+          {props.filePath !== null && (
+            <Stack gap={2}>
+              <Text variant="caption">Path</Text>
+              <Box className="rounded-lg bg-background p-2.5">
+                <Text variant="mono" className="break-all select-text" testId="details-path">
+                  {props.filePath}
+                </Text>
+              </Box>
+              <Button
+                size="sm"
+                icon={Copy}
+                onClick={() => {
+                  if (props.filePath !== null) props.onCopyPath(props.filePath)
+                }}
+              >
+                Copy path
+              </Button>
+            </Stack>
+          )}
         </Stack>
       </ScrollArea>
     </Dialog>
