@@ -90,13 +90,10 @@ describe('Details', () => {
     expect(screen.queryByTestId('details-prompt-guide')).not.toBeInTheDocument()
   })
 
-  it('shows the full path of the file on disk, copies it and reveals the file', async () => {
+  it('shows the full path of the file on disk and reveals the file', async () => {
     const api = createFakeApi({ items: [base] })
     const { user } = renderWithApp({ ui: <Details item={base} onClose={vi.fn()} />, api })
-    const copy = vi.spyOn(navigator.clipboard, 'writeText')
     expect(await screen.findByTestId('details-path')).toHaveTextContent('D:/data/media/itm_g.png')
-    await user.click(screen.getByTestId('details-copy-path'))
-    expect(copy).toHaveBeenCalledWith('D:/data/media/itm_g.png')
     await user.click(screen.getByTestId('details-path'))
     expect(api.requestsTo({ method: 'POST', path: '/api/storage/reveal' })[0]?.body).toEqual({
       fileName: 'itm_g.png',

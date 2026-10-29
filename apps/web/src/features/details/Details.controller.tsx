@@ -55,11 +55,6 @@ const DetailsContent = ({
           notify({ title: 'Prompt copied', tone: 'success' })
         })
       }}
-      onCopyPath={(path) => {
-        void navigator.clipboard.writeText(path).then(() => {
-          notify({ title: 'Path copied', tone: 'success' })
-        })
-      }}
       onRevealFile={() => void revealFile({ fileName: item.media.fileName })}
       onCopyImage={
         item.kind === 'image'

@@ -6,7 +6,6 @@ import {
   Dialog,
   Disclosure,
   ExternalLink,
-  IconButton,
   LinkButton,
   ScrollArea,
   Separator,
@@ -28,7 +27,6 @@ export type DetailsViewProps = {
   /** Absolute path of the media file on disk, once the storage directory is known. */
   readonly filePath: string | null
   readonly onCopyPrompt: (prompt: string) => void
-  readonly onCopyPath: (path: string) => void
   /** Opens the file manager on the media folder with this file selected. */
   readonly onRevealFile: () => void
   /** Null for videos: the clipboard only takes still images. */
@@ -36,33 +34,20 @@ export type DetailsViewProps = {
   readonly onClose: () => void
 }
 
-/** Clicking the path shows the file in its folder; the icon copies it. */
-const PathRow = (props: {
-  readonly path: string
-  readonly onReveal: () => void
-  readonly onCopy: (path: string) => void
-}) => (
-  <Stack direction="row" justify="between" align="center" gap={3}>
+/** Clicking the path shows the file in its folder. */
+const PathRow = (props: { readonly path: string; readonly onReveal: () => void }) => (
+  <Stack direction="row" justify="between" gap={3}>
     <Text variant="caption" className="shrink-0">
       Path
     </Text>
-    <Stack direction="row" align="center" gap={1} className="min-w-0">
-      <LinkButton
-        truncateStart
-        title={`${props.path}\nShow in folder`}
-        onClick={props.onReveal}
-        testId="details-path"
-      >
-        {props.path}
-      </LinkButton>
-      <IconButton
-        icon={Copy}
-        label="Copy path"
-        size="sm"
-        onClick={() => props.onCopy(props.path)}
-        testId="details-copy-path"
-      />
-    </Stack>
+    <LinkButton
+      truncateStart
+      title={`${props.path}\nShow in folder`}
+      onClick={props.onReveal}
+      testId="details-path"
+    >
+      {props.path}
+    </LinkButton>
   </Stack>
 )
 
@@ -189,11 +174,7 @@ export const DetailsView = (props: DetailsViewProps) => {
               </Stack>
             ))}
             {props.filePath !== null && (
-              <PathRow
-                path={props.filePath}
-                onReveal={props.onRevealFile}
-                onCopy={props.onCopyPath}
-              />
+              <PathRow path={props.filePath} onReveal={props.onRevealFile} />
             )}
           </Stack>
         </Stack>
