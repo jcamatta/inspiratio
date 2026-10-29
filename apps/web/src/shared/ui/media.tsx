@@ -35,6 +35,8 @@ export type MediaVideoProps = {
   readonly testId?: string
   readonly controls?: boolean
   readonly autoPlay?: boolean
+  /** Muted by default so background previews stay silent; players that own a sound toggle unmute. */
+  readonly muted?: boolean
   readonly onLoadedMetadata?: ComponentProps<'video'>['onLoadedMetadata']
   readonly onTimeUpdate?: ComponentProps<'video'>['onTimeUpdate']
   readonly onPlay?: () => void
@@ -50,6 +52,7 @@ export const MediaVideo = ({
   testId,
   controls = false,
   autoPlay = false,
+  muted = true,
   onLoadedMetadata,
   onTimeUpdate,
   onPlay,
@@ -60,7 +63,7 @@ export const MediaVideo = ({
     ref={ref}
     src={src}
     data-testid={testId}
-    muted
+    muted={muted}
     loop
     playsInline
     preload="metadata"

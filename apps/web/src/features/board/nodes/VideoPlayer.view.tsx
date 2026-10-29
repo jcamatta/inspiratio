@@ -1,4 +1,4 @@
-import { Pause, Play, RotateCcw } from 'lucide-react'
+import { Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import type { SyntheticEvent } from 'react'
 import { cx } from '../../../shared/lib/cx.ts'
 import { formatTime } from '../domain/time.ts'
@@ -11,6 +11,8 @@ export type VideoPlayerViewProps = {
   readonly currentTime: number
   readonly duration: number
   readonly showControls: boolean
+  readonly muted: boolean
+  readonly onToggleMute: () => void
   readonly onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => void
   readonly onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void
   readonly onPlay: () => void
@@ -26,6 +28,7 @@ export const VideoPlayerView = ({ onVideoElement, ...props }: VideoPlayerViewPro
       src={props.src}
       ref={onVideoElement}
       testId="video-element"
+      muted={props.muted}
       onLoadedMetadata={props.onLoadedMetadata}
       onTimeUpdate={props.onTimeUpdate}
       onPlay={props.onPlay}
@@ -66,6 +69,14 @@ export const VideoPlayerView = ({ onVideoElement, ...props }: VideoPlayerViewPro
           testId="video-seek"
         />
       </Box>
+      <IconButton
+        icon={props.muted ? VolumeX : Volume2}
+        label={props.muted ? 'Unmute' : 'Mute'}
+        size="sm"
+        className="text-white hover:bg-white/15"
+        testId="video-mute"
+        onClick={props.onToggleMute}
+      />
       <Text variant="mono" className="pr-1 text-[10px] text-white/80">
         {formatTime(props.currentTime)}/{formatTime(props.duration)}
       </Text>

@@ -400,6 +400,16 @@ describe('Canvas', () => {
     expect(within(node).getByText('0:03/0:12')).toBeInTheDocument()
     fireEvent.change(within(node).getByRole('slider'), { target: { value: '6' } })
   })
+
+  it('plays canvas videos with sound and can mute them', async () => {
+    renderWithApp({ ui: <AppView />, api: seeded(), workspace: { selection: ['itm_v'] } })
+    const node = await screen.findByTestId('media-node-itm_v')
+    const video = within(node).getByTestId<HTMLVideoElement>('video-element')
+    expect(video.muted).toBe(false)
+    fireEvent.click(within(node).getByRole('button', { name: 'Mute' }))
+    expect(video.muted).toBe(true)
+    expect(within(node).getByRole('button', { name: 'Unmute' })).toBeInTheDocument()
+  })
 })
 
 describe('Prompt cards', () => {

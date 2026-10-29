@@ -14,6 +14,7 @@ export const VideoPlayer = ({ item, showControls, onDimensions }: VideoPlayerCon
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [muted, setMuted] = useState(false)
 
   const onLoadedMetadata = useCallback(
     (event: SyntheticEvent<HTMLVideoElement>) => {
@@ -56,6 +57,10 @@ export const VideoPlayer = ({ item, showControls, onDimensions }: VideoPlayerCon
       currentTime={currentTime}
       duration={duration}
       showControls={showControls}
+      muted={muted}
+      onToggleMute={() => {
+        setMuted((current) => !current)
+      }}
       onLoadedMetadata={onLoadedMetadata}
       onTimeUpdate={(event) => {
         setCurrentTime(event.currentTarget.currentTime)

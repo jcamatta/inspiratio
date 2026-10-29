@@ -54,7 +54,13 @@ export const ViewerView = ({ onStageElement, ...props }: ViewerViewProps) => (
             style={{ transform: toCss(props.view) }}
           >
             {props.item.kind === 'video' ? (
-              <MediaVideo src={mediaUrlOf(props.item.media)} fit="contain" controls autoPlay />
+              <MediaVideo
+                src={mediaUrlOf(props.item.media)}
+                fit="contain"
+                controls
+                autoPlay
+                muted={false}
+              />
             ) : (
               <MediaImage src={mediaUrlOf(props.item.media)} alt={props.item.title} fit="contain" />
             )}
