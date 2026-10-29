@@ -339,6 +339,18 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         })
         return noContent()
       }
+      if (method === 'POST' && action === 'idea' && found !== undefined) {
+        const history = (body.history as { feedback: string }[] | undefined) ?? []
+        const last = history.at(-1)
+        return json({
+          body: {
+            brief: `${String(body.brief)}, as a slow spiral vortex; the camera does not zoom${
+              last === undefined ? '' : `; ${last.feedback}`
+            }`,
+            questions: last === undefined ? ['Should it turn clockwise?'] : [],
+          },
+        })
+      }
       if (method === 'POST' && action === 'submit' && found !== undefined) {
         if (found.prompt.trim() === '')
           return apiError({

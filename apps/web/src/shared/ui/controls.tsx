@@ -199,16 +199,24 @@ export const Slider = ({ value, max, onValueChange, label, step = 0.01, testId }
   </BaseSlider.Root>
 )
 
-export const ScrollArea = ({
-  children,
-  className,
-}: {
+export type ScrollAreaProps = {
   readonly children: ReactNode
   readonly className?: string
-}) => (
-  <BaseScrollArea.Root className={cx('relative min-h-0 overflow-hidden', className)}>
+  /** Takes the full height of its parent; the content stretches to at least that height. */
+  readonly fill?: boolean
+  readonly testId?: string
+}
+
+/** Base UI scroll area with the app's thin scrollbar, used instead of native scrollbars. */
+export const ScrollArea = ({ children, className, fill = false, testId }: ScrollAreaProps) => (
+  <BaseScrollArea.Root
+    className={cx('relative min-h-0 overflow-hidden', fill && 'h-full', className)}
+    data-testid={testId}
+  >
     <BaseScrollArea.Viewport className="h-full overscroll-contain">
-      <BaseScrollArea.Content>{children}</BaseScrollArea.Content>
+      <BaseScrollArea.Content className={cx(fill && 'flex min-h-full flex-col')}>
+        {children}
+      </BaseScrollArea.Content>
     </BaseScrollArea.Viewport>
     <BaseScrollArea.Scrollbar className="flex w-1.5 justify-center rounded-full p-px opacity-0 transition data-[hovering]:opacity-100 data-[scrolling]:opacity-100">
       <BaseScrollArea.Thumb className="w-full rounded-full bg-mint-200" />

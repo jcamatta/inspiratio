@@ -182,3 +182,25 @@ export const GenerationDetailsSchema = GenerationRequestSchema.extend({
   resolvedOptions: GenerationOptionsSchema,
 })
 export type GenerationDetails = z.infer<typeof GenerationDetailsSchema>
+
+/** One round of refining: the version Claude proposed and what the user wants changed in it. */
+export const IdeaTurnSchema = z.object({
+  suggestion: z.string().trim().min(1).max(8000),
+  feedback: z.string().trim().min(1).max(2000),
+})
+export type IdeaTurn = z.infer<typeof IdeaTurnSchema>
+
+/** The user's brief, sent to Claude for help with the idea itself (not the model's prompt). */
+export const DevelopIdeaSchema = z.object({
+  brief: z.string().trim().min(1).max(8000),
+  /** Earlier rounds, oldest first; Claude revises its last version following the last feedback. */
+  history: z.array(IdeaTurnSchema).max(12).default([]),
+})
+export type DevelopIdeaInput = z.input<typeof DevelopIdeaSchema>
+
+/** Claude's take on the idea: a clearer brief plus questions where the intent is ambiguous. */
+export const IdeaSuggestionSchema = z.object({
+  brief: z.string().trim().min(1).max(8000),
+  questions: z.array(z.string().trim().min(1).max(400)).max(5),
+})
+export type IdeaSuggestion = z.infer<typeof IdeaSuggestionSchema>

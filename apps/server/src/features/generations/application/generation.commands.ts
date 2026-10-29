@@ -7,11 +7,14 @@ import {
   type GenerationRequest,
   type GenerationResult,
   type GenerationStatus,
+  type IdeaSuggestion,
+  type IdeaTurn,
   type Result,
   type UpdateGenerationInput,
 } from '@inspiratio/shared'
 import type { AgentRunner } from '../../../shared/agent/agent-runner.ts'
 import type { ProviderCall } from '../../../shared/agent/agent-steps.ts'
+import type { IdeaHelper } from '../../../shared/agent/idea-helper.ts'
 import { findById, removeById, upsert } from '../../../shared/lib/collections.ts'
 import { fetchRemoteMedia } from '../../../shared/media/remote-media.ts'
 import type { ItemDeps } from '../../items/application/item.deps.ts'
@@ -29,13 +32,18 @@ import {
   nextRun,
   rememberUploads,
   reportProgress,
+  resolveReferences,
   resultPosition,
   startStep,
   transition,
   updateDraft,
 } from '../domain/generation.ts'
 
-export type GenerationDeps = ItemDeps & { readonly runAgent: AgentRunner | null }
+export type GenerationDeps = ItemDeps & {
+  readonly runAgent: AgentRunner | null
+  /** Claude helping with the idea of a brief; null when the agent is turned off. */
+  readonly helpWithIdea: IdeaHelper | null
+}
 
 export const createGenerationCommands = (deps: GenerationDeps) => {
   const running = new Set<string>()
@@ -302,6 +310,42 @@ export const createGenerationCommands = (deps: GenerationDeps) => {
     return ok(undefined)
   }
 
+  /** Claude develops the idea of a brief; nothing is saved, the user decides whether to use it. */
+  const developIdea = async (params: {
+    readonly id: string
+    readonly brief: string
+    readonly history: readonly IdeaTurn[]
+  }): Promise<Result<IdeaSuggestion>> => {
+    const state = deps.store.read()
+    const request = findById({ list: state.generations, id: params.id })
+    if (request === undefined) return notFound({ entity: 'Generation', id: params.id })
+    if (deps.helpWithIdea === null)
+      return err({ code: 'invalid_state', message: 'Claude is turned off (INSPIRATIO_AGENT=off)' })
+    const references = resolveReferences({
+      request,
+      items: state.items,
+      tags: state.tags,
+      absolutePathOf: deps.storage.absolutePathOf,
+    })
+    const suggestion = await deps.helpWithIdea({
+      kind: request.kind,
+      brief: params.brief,
+      history: params.history,
+      references: references.map((reference) => ({
+        label: reference.label,
+        kind: reference.kind,
+        title: reference.title,
+        path: reference.absolutePath,
+      })),
+    })
+    deps.logger.info({
+      msg: suggestion.ok ? 'generation.idea_developed' : 'generation.idea_failed',
+      generationId: request.id,
+      round: params.history.length + 1,
+    })
+    return suggestion
+  }
+
   const retry = (params: { readonly id: string }) => move({ id: params.id, to: 'pending' })
 
   const remove = async (params: { readonly id: string }): Promise<Result<undefined>> => {
@@ -314,7 +358,18 @@ export const createGenerationCommands = (deps: GenerationDeps) => {
     return ok(undefined)
   }
 
-  return { create, update, submit, start, progress, complete, fail, retry, remove }
+  return {
+    create,
+    update,
+    submit,
+    start,
+    progress,
+    complete,
+    fail,
+    retry,
+    remove,
+    developIdea,
+  }
 }
 
 export type GenerationCommands = ReturnType<typeof createGenerationCommands>

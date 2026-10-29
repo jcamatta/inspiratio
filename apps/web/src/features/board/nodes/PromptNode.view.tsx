@@ -33,6 +33,9 @@ import {
   Timer,
   TriangleAlert,
   Bot,
+  Check,
+  Lightbulb,
+  MessageSquareText,
   X,
 } from 'lucide-react'
 import { cx } from '../../../shared/lib/cx.ts'
@@ -43,6 +46,7 @@ import {
   IconButton,
   MediaImage,
   Panel,
+  ScrollArea,
   ToggleChip,
   Stack,
   Text,
@@ -58,7 +62,7 @@ import {
   settingsSummaryOf,
 } from '../../generation/domain/prompt.ts'
 import type { PromptNodeData } from '../domain/flow-mapping.ts'
-import type { PromptSettings } from './PromptNode.controller.tsx'
+import type { IdeaSession, PromptSettings } from './PromptNode.controller.tsx'
 
 export type PromptNodeViewProps = {
   readonly data: PromptNodeData
@@ -66,6 +70,14 @@ export type PromptNodeViewProps = {
   readonly brief: string
   readonly onBriefChange: (brief: string) => void
   readonly onBriefCommit: () => void
+  readonly idea: IdeaSession | null
+  readonly feedback: string
+  readonly onFeedbackChange: (feedback: string) => void
+  readonly developing: boolean
+  readonly onDevelopIdea: () => void
+  readonly onRefineIdea: () => void
+  readonly onUseSuggestion: () => void
+  readonly onDismissSuggestion: () => void
   readonly model: ModelSpec
   readonly dangling: readonly string[]
   readonly elapsed: string | null
@@ -224,6 +236,102 @@ const Thumb = ({
   </Box>
 )
 
+/** Claude's take on the idea; the user uses it, asks for changes in another round, or dismisses it. */
+const IdeaSuggestionBox = (props: {
+  readonly idea: IdeaSession
+  readonly feedback: string
+  readonly developing: boolean
+  readonly onFeedbackChange: (feedback: string) => void
+  readonly onRefine: () => void
+  readonly onUse: () => void
+  readonly onDismiss: () => void
+}) => {
+  const { suggestion, history } = props.idea
+  const canRefine = props.feedback.trim() !== '' && !props.developing
+  return (
+    <Stack
+      gap={2}
+      className="nodrag nowheel rounded-xl border border-primary/30 bg-surface p-2.5"
+      testId="prompt-idea"
+    >
+      <Stack direction="row" align="center" gap={1}>
+        <Lightbulb size={14} className="text-primary" />
+        <Text variant="caption" className="font-medium">
+          Claude's take on your idea
+          {history.length > 0 && ` · round ${String(history.length + 1)}`}
+        </Text>
+      </Stack>
+      {history.length > 0 && (
+        <Stack gap={1} testId="prompt-idea-history">
+          {[...history.entries()].map(([index, turn]) => (
+            <Stack key={index} direction="row" gap={1} align="start">
+              <MessageSquareText size={12} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <Text variant="caption">{turn.feedback}</Text>
+            </Stack>
+          ))}
+        </Stack>
+      )}
+      <ScrollArea className="max-h-40">
+        <Text variant="body" className="whitespace-pre-wrap" testId="prompt-idea-brief">
+          {suggestion.brief}
+        </Text>
+      </ScrollArea>
+      {suggestion.questions.length > 0 && (
+        <Stack gap={1} testId="prompt-idea-questions">
+          {suggestion.questions.map((question) => (
+            <Text key={question} variant="caption">
+              · {question}
+            </Text>
+          ))}
+        </Stack>
+      )}
+      <TextArea
+        value={props.feedback}
+        onValueChange={props.onFeedbackChange}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && canRefine)
+            props.onRefine()
+        }}
+        disabled={props.developing}
+        placeholder="I like it, but change… (answer the questions here too)"
+        testId="prompt-idea-feedback"
+      />
+      <Stack direction="row" gap={2} wrap>
+        <Button
+          size="sm"
+          variant="primary"
+          icon={Check}
+          disabled={props.developing}
+          onClick={props.onUse}
+          testId="prompt-idea-use"
+        >
+          Use this
+        </Button>
+        <Button
+          size="sm"
+          icon={props.developing ? LoaderCircle : MessageSquareText}
+          disabled={!canRefine}
+          onClick={props.onRefine}
+          className={cx(props.developing && '[&_svg]:animate-spin')}
+          testId="prompt-idea-refine"
+        >
+          {props.developing ? 'Refining…' : 'Refine'}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={X}
+          disabled={props.developing}
+          onClick={props.onDismiss}
+          testId="prompt-idea-dismiss"
+        >
+          Dismiss
+        </Button>
+      </Stack>
+    </Stack>
+  )
+}
+
 export const PromptNodeView = (props: PromptNodeViewProps) => {
   const { request, references, results, dropActive } = props.data
   const isDraft = request.status === 'draft'
@@ -316,7 +424,29 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
                 reference
               </Text>
             )}
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={props.developing ? LoaderCircle : Lightbulb}
+              disabled={props.developing || props.brief.trim() === ''}
+              onClick={props.onDevelopIdea}
+              className={cx('nodrag self-start', props.developing && '[&_svg]:animate-spin')}
+              testId="prompt-develop-idea"
+            >
+              {props.developing ? 'Claude is thinking…' : 'Help me with the idea'}
+            </Button>
           </Stack>
+          {props.idea !== null && (
+            <IdeaSuggestionBox
+              idea={props.idea}
+              feedback={props.feedback}
+              developing={props.developing}
+              onFeedbackChange={props.onFeedbackChange}
+              onRefine={props.onRefineIdea}
+              onUse={props.onUseSuggestion}
+              onDismiss={props.onDismissSuggestion}
+            />
+          )}
           <Stack gap={2} className="nodrag">
             <ChipSelect
               wide

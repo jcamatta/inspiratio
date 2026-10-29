@@ -12,6 +12,7 @@ import {
 } from './shared/system/folder-opener.ts'
 import { createSharpUploadPreparer } from './shared/media/upload-copy.ts'
 import { createClaudeAgentRunner } from './shared/agent/agent-runner.ts'
+import { createClaudeIdeaHelper } from './shared/agent/idea-helper.ts'
 import { createFsPromptGuideReader } from './features/generations/infrastructure/prompt-guide-reader.ts'
 
 const rootDir = fileURLToPath(new URL('../../../', import.meta.url))
@@ -72,6 +73,15 @@ const start = async (): Promise<void> => {
     revealFile: createSystemFileRevealer(process.platform),
     prepareUpload: await createSharpUploadPreparer({ cacheDir: config.uploadCacheDir }),
     runAgent,
+    helpWithIdea:
+      config.agentCommand === null
+        ? null
+        : createClaudeIdeaHelper({
+            command: config.agentCommand,
+            model: config.agentModel,
+            cwd: rootDir,
+            mediaDir: config.mediaDir,
+          }),
     readPromptGuide: createFsPromptGuideReader({ dir: config.promptGuidesDir }),
   })
   app.listen(config.port, config.host, () => {

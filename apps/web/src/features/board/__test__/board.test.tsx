@@ -441,6 +441,46 @@ describe('Prompt cards', () => {
     })
   })
 
+  it('lets Claude develop and refine the idea before the brief is used', async () => {
+    const api = draft()
+    const { user } = renderWithApp({ ui: <AppView />, api })
+    const card = await screen.findByTestId(/^prompt-node-/)
+    const brief = within(card).getByTestId('prompt-brief')
+    await user.clear(brief)
+    await user.type(brief, 'make @1 move')
+    await user.click(within(card).getByTestId('prompt-develop-idea'))
+    const idea = await within(card).findByTestId('prompt-idea')
+    expect(within(idea).getByTestId('prompt-idea-brief')).toHaveTextContent(
+      'make @1 move, as a slow spiral vortex; the camera does not zoom',
+    )
+    expect(within(idea).getByText('· Should it turn clockwise?')).toBeInTheDocument()
+    expect(within(idea).getByTestId('prompt-idea-refine')).toHaveAttribute('data-disabled')
+
+    await user.type(within(idea).getByTestId('prompt-idea-feedback'), 'clockwise, faster')
+    await user.click(within(idea).getByTestId('prompt-idea-refine'))
+    await waitFor(() => {
+      expect(within(card).getByTestId('prompt-idea-brief')).toHaveTextContent(
+        'the camera does not zoom; clockwise, faster',
+      )
+    })
+    expect(within(card).getByTestId('prompt-idea-history')).toHaveTextContent('clockwise, faster')
+    expect(within(card).getByText(/round 2/)).toBeInTheDocument()
+    expect(within(card).getByTestId('prompt-idea-feedback')).toHaveValue('')
+    expect(api.state.generations[0]?.prompt).not.toContain('clockwise')
+
+    await user.click(within(card).getByTestId('prompt-idea-use'))
+    await waitFor(() => {
+      expect(api.state.generations[0]?.prompt).toBe(
+        'make @1 move, as a slow spiral vortex; the camera does not zoom; clockwise, faster',
+      )
+    })
+    expect(within(card).queryByTestId('prompt-idea')).not.toBeInTheDocument()
+
+    await user.click(within(card).getByTestId('prompt-develop-idea'))
+    await user.click(await within(card).findByTestId('prompt-idea-dismiss'))
+    expect(within(card).queryByTestId('prompt-idea')).not.toBeInTheDocument()
+  })
+
   it('changes model, aspect, variants and model settings on a draft prompt', async () => {
     const api = draft()
     const { user } = renderWithApp({ ui: <AppView />, api })

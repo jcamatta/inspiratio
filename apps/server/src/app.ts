@@ -19,6 +19,7 @@ import {
 } from './features/storage/application/storage.service.ts'
 import { storageRoutes } from './features/storage/http/storage.routes.ts'
 import type { AgentRunner } from './shared/agent/agent-runner.ts'
+import type { IdeaHelper } from './shared/agent/idea-helper.ts'
 import type { UploadPreparer } from './shared/media/upload-copy.ts'
 import type { FileRevealer, FolderOpener } from './shared/system/folder-opener.ts'
 import { createExpressApp } from './shared/http/express-adapter.ts'
@@ -33,6 +34,8 @@ export type AppDeps = ItemDeps & {
   readonly prepareUpload: UploadPreparer
   /** Starts an agent for each queued generation; null leaves requests for a manual Claude session. */
   readonly runAgent: AgentRunner | null
+  /** Claude helping the user shape the idea of a brief; null when the agent is off. */
+  readonly helpWithIdea: IdeaHelper | null
   /** Reads `prompt-guides/<model>.md` for the model a generation resolves to. */
   readonly readPromptGuide: PromptGuideReader
   /** Logger used to re-emit browser records verbatim. */

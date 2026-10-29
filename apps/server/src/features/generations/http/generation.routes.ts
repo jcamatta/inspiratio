@@ -1,6 +1,7 @@
 import {
   CompleteGenerationSchema,
   CreateGenerationSchema,
+  DevelopIdeaSchema,
   FailGenerationSchema,
   ListGenerationsSchema,
   ReportProgressSchema,
@@ -95,6 +96,15 @@ export const generationRoutes = (params: {
         schema: FailGenerationSchema,
         run: ({ body, request }) => commands.fail({ id: pathId(request), error: body.error }),
         onOk: noContent,
+      }),
+    },
+    {
+      method: 'post',
+      path: '/api/generations/:id/idea',
+      handler: withBody({
+        schema: DevelopIdeaSchema,
+        run: ({ body, request }) => commands.developIdea({ id: pathId(request), ...body }),
+        onOk: json,
       }),
     },
     {

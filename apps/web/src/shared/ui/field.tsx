@@ -54,7 +54,7 @@ export type TextAreaProps = {
 const TEXTAREA_CLASS =
   'block w-full resize-none bg-transparent px-2.5 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 data-[disabled]:opacity-60'
 
-/** Grows with its content; past the max height it scrolls inside a Base UI ScrollArea. */
+/** Grows with its content and scrolls inside a Base UI ScrollArea past the max (or parent) height. */
 export const TextArea = ({
   value,
   onValueChange,
@@ -76,9 +76,8 @@ export const TextArea = ({
       render={<textarea rows={3} data-testid={testId} onKeyDown={onKeyDown} />}
       className={cx(
         TEXTAREA_CLASS,
-        fill
-          ? 'nowheel h-full min-h-20 overflow-auto'
-          : '[field-sizing:content] min-h-20 overflow-hidden',
+        '[field-sizing:content] min-h-20 overflow-hidden',
+        fill && 'flex-1',
       )}
     />
   )
@@ -98,7 +97,9 @@ export const TextArea = ({
           fill && 'min-h-0 flex-1',
         )}
       >
-        {fill ? input : <ScrollArea className="nowheel max-h-48">{input}</ScrollArea>}
+        <ScrollArea fill={fill} className={cx('nowheel', !fill && 'max-h-48')}>
+          {input}
+        </ScrollArea>
       </Box>
     </BaseField.Root>
   )

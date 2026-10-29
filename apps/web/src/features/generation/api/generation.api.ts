@@ -1,7 +1,9 @@
 import {
   CreatedSchema,
   GenerationRequestSchema,
+  IdeaSuggestionSchema,
   type CreateGenerationInput,
+  type DevelopIdeaInput,
   type TraceContext,
   type UpdateGenerationInput,
 } from '@inspiratio/shared'
@@ -45,6 +47,15 @@ export const generationApi = {
       method: 'POST',
       path: `/api/generations/${params.id}/submit`,
       schema: CreatedSchema,
+      trace: params.trace,
+    }),
+
+  developIdea: (params: Traced & DevelopIdeaInput & { readonly id: string }) =>
+    http.request({
+      method: 'POST',
+      path: `/api/generations/${params.id}/idea`,
+      body: { brief: params.brief, history: params.history },
+      schema: IdeaSuggestionSchema,
       trace: params.trace,
     }),
 

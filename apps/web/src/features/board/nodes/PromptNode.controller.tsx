@@ -1,3 +1,4 @@
+import type { IdeaSuggestion, IdeaTurn } from '@inspiratio/shared'
 import { useReactFlow, type NodeProps } from '@xyflow/react'
 import { useEffect, useState } from 'react'
 import { notify } from '../../../shared/ui/index.ts'
@@ -16,6 +17,13 @@ import { isActive, useGenerationCommands } from '../../generation/generation.hoo
 import { useBoardActions } from '../board.actions.ts'
 import type { PromptFlowNode, PromptNodeData } from '../domain/flow-mapping.ts'
 import { PromptNodeView } from './PromptNode.view.tsx'
+
+/** A conversation with Claude about the idea: the brief it started from, the rounds, the latest take. */
+export type IdeaSession = {
+  readonly brief: string
+  readonly history: readonly IdeaTurn[]
+  readonly suggestion: IdeaSuggestion
+}
 
 export type PromptSettings = {
   readonly model?: string
@@ -48,6 +56,9 @@ const PromptCard = ({
     setSynced(request.prompt)
     setBrief(request.prompt)
   }
+  const [idea, setIdea] = useState<IdeaSession | null>(null)
+  const [feedback, setFeedback] = useState('')
+  const [developing, setDeveloping] = useState(false)
   const active = isActive(request)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -63,6 +74,39 @@ const PromptCard = ({
   const saveBrief = async () => {
     if (brief.trim() !== request.prompt)
       await generations.update({ id: request.id, patch: { prompt: brief.trim() } })
+  }
+
+  /** Step one of three: Claude helps with the idea; the model-specific prompt comes later. */
+  const askClaude = async (session: Omit<IdeaSession, 'suggestion'>) => {
+    setDeveloping(true)
+    const developed = await generations.developIdea({
+      id: request.id,
+      brief: session.brief,
+      history: [...session.history],
+    })
+    setDeveloping(false)
+    if (developed === undefined) return
+    setIdea({ ...session, suggestion: developed })
+    setFeedback('')
+  }
+
+  /** Another round: Claude revises its last take following what the user wants changed. */
+  const refineIdea = async (session: IdeaSession) => {
+    if (feedback.trim() === '') return
+    await askClaude({
+      brief: session.brief,
+      history: [
+        ...session.history,
+        { suggestion: session.suggestion.brief, feedback: feedback.trim() },
+      ],
+    })
+  }
+
+  const applySuggestion = async (accepted: IdeaSuggestion) => {
+    setIdea(null)
+    setFeedback('')
+    setBrief(accepted.brief)
+    await generations.update({ id: request.id, patch: { prompt: accepted.brief } })
   }
 
   const generate = async () => {
@@ -111,6 +155,23 @@ const PromptCard = ({
       onBriefChange={setBrief}
       onBriefCommit={() => {
         void saveBrief()
+      }}
+      idea={idea}
+      feedback={feedback}
+      onFeedbackChange={setFeedback}
+      developing={developing}
+      onDevelopIdea={() => {
+        void askClaude({ brief: brief.trim(), history: [] })
+      }}
+      onRefineIdea={() => {
+        if (idea !== null) void refineIdea(idea)
+      }}
+      onUseSuggestion={() => {
+        if (idea !== null) void applySuggestion(idea.suggestion)
+      }}
+      onDismissSuggestion={() => {
+        setIdea(null)
+        setFeedback('')
       }}
       model={model}
       dangling={dangling}

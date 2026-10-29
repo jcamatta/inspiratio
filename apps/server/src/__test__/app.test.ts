@@ -1,5 +1,6 @@
 import {
   formatTraceparent,
+  ok,
   startTrace,
   type BoardSnapshot,
   type GenerationDetails,
@@ -7,6 +8,7 @@ import {
 } from '@inspiratio/shared'
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
+import type { IdeaRequest } from '../shared/agent/idea-helper.ts'
 import { createTestApp, fakeFetch, MP4, PNG, TEST_GUIDES } from './harness.ts'
 
 const upload = async (params: {
@@ -290,6 +292,67 @@ describe('HTTP API (integration)', () => {
     })
     expect((await request(app).delete(`/api/generations/${id}`)).status).toBe(204)
     expect((await request(app).get(`/api/generations/${id}`)).status).toBe(404)
+  })
+
+  it('develops the idea of a brief with Claude without saving it', async () => {
+    const seen: IdeaRequest[] = []
+    const { app } = createTestApp({
+      ideas: (idea) => {
+        seen.push(idea)
+        return Promise.resolve(
+          ok({ brief: '@1 swirls into a slow vortex', questions: ['Clockwise?'] }),
+        )
+      },
+    })
+    const { ids } = await upload({ app })
+    const id = (
+      (
+        await request(app)
+          .post('/api/generations')
+          .send({ prompt: '', kind: 'video', submit: false, referenceItemIds: ids })
+      ).body as { id: string }
+    ).id
+    const response = await request(app)
+      .post(`/api/generations/${id}/idea`)
+      .send({ brief: 'make @1 move like a vortex' })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      brief: '@1 swirls into a slow vortex',
+      questions: ['Clockwise?'],
+    })
+    expect(seen[0]).toMatchObject({ kind: 'video', brief: 'make @1 move like a vortex' })
+    expect(seen[0]?.references[0]).toMatchObject({ label: '@1', kind: 'image' })
+    expect(seen[0]?.history).toEqual([])
+    const turn = { suggestion: '@1 swirls into a slow vortex', feedback: 'faster' }
+    expect(
+      (
+        await request(app)
+          .post(`/api/generations/${id}/idea`)
+          .send({ brief: 'make @1 move like a vortex', history: [turn] })
+      ).status,
+    ).toBe(200)
+    expect(seen[1]?.history).toEqual([turn])
+    expect(
+      ((await request(app).get(`/api/generations/${id}`)).body as GenerationRequest).prompt,
+    ).toBe('')
+    expect(
+      (await request(app).post(`/api/generations/${id}/idea`).send({ brief: ' ' })).status,
+    ).toBe(400)
+    expect(
+      (await request(app).post('/api/generations/gen_x/idea').send({ brief: 'x' })).status,
+    ).toBe(404)
+  })
+
+  it('refuses idea help when Claude is off', async () => {
+    const { app } = createTestApp()
+    const id = (
+      (await request(app).post('/api/generations').send({ prompt: '', submit: false })).body as {
+        id: string
+      }
+    ).id
+    expect(
+      (await request(app).post(`/api/generations/${id}/idea`).send({ brief: 'x' })).status,
+    ).toBe(409)
   })
 
   it('fails, retries and rejects bad generation requests', async () => {

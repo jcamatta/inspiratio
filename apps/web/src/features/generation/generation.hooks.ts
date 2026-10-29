@@ -95,6 +95,12 @@ export const useGenerationCommands = () => ({
     invalidate: GENERATIONS,
     errorTitle: 'Could not queue the prompt',
   }),
+  developIdea: useCommand({
+    name: 'generation.develop_idea',
+    call: generationApi.developIdea,
+    invalidate: [],
+    errorTitle: 'Claude could not help with the idea',
+  }),
   retry: useCommand({
     name: 'generation.retry',
     call: generationApi.retry,

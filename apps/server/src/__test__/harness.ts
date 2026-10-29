@@ -1,6 +1,7 @@
 import { err, ok, type LibraryState, type Result } from '@inspiratio/shared'
 import { createApp, type AppDeps } from '../app.ts'
 import type { AgentOutcome, AgentRunParams } from '../shared/agent/agent-runner.ts'
+import type { IdeaHelper } from '../shared/agent/idea-helper.ts'
 import { createLogger, memorySink } from '../shared/logging/logger.ts'
 import { fixedClock, sequentialIds } from '../shared/lib/runtime.ts'
 import { createMemoryMediaStorage } from '../shared/media/media-storage.ts'
@@ -75,6 +76,7 @@ export const createTestDeps = (params?: {
   readonly openFails?: boolean
   readonly agent?: (run: AgentRunParams) => Promise<AgentOutcome>
   readonly guides?: Readonly<Record<string, string>>
+  readonly ideas?: IdeaHelper
 }) => {
   const logs = memorySink()
   const opened: string[] = []
@@ -108,6 +110,7 @@ export const createTestDeps = (params?: {
             agentRuns.push(run.generationId)
             return params.agent?.(run) ?? Promise.resolve({ exitCode: 0, logFile: '' })
           },
+    helpWithIdea: params?.ideas ?? null,
     openFolder: (path) => {
       if (params?.openFails === true) return Promise.reject(new Error('no file manager'))
       opened.push(path)
