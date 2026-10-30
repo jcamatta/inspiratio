@@ -6,6 +6,19 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5319
+    },
+    {
+      "name": "inspiratio-sandbox",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5339,
+      "env": {
+        "INSPIRATIO_DATA_DIR": ".e2e-data/sandbox",
+        "INSPIRATIO_PORT": "4339",
+        "INSPIRATIO_API_URL": "http://127.0.0.1:4339",
+        "INSPIRATIO_WEB_PORT": "5339",
+        "INSPIRATIO_AGENT": "off"
+      }
     }
   ]
 }

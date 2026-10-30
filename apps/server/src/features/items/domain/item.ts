@@ -17,13 +17,20 @@ import { findById, unique } from '../../../shared/lib/collections.ts'
 export { INITIAL_EDGE } from '@inspiratio/shared'
 export const PLACEMENT_GAP = 48
 
+/** Shape used until the browser reports real dimensions; audio has none and stays a wide strip. */
+const FALLBACK_SHAPE: Readonly<Record<ItemKind, Size>> = {
+  image: { width: 1, height: 1 },
+  video: { width: 16, height: 9 },
+  audio: { width: 3, height: 1 },
+}
+
 export const initialSize = (params: {
   readonly width: number | null
   readonly height: number | null
   readonly kind: ItemKind
 }): Size => {
-  const width = params.width ?? (params.kind === 'video' ? 16 : 1)
-  const height = params.height ?? (params.kind === 'video' ? 9 : 1)
+  const width = params.width ?? FALLBACK_SHAPE[params.kind].width
+  const height = params.height ?? FALLBACK_SHAPE[params.kind].height
   const scale = INITIAL_EDGE / Math.max(width, height)
   return { width: Math.round(width * scale), height: Math.round(height * scale) }
 }

@@ -94,6 +94,10 @@ describe('item domain', () => {
       width: 320,
       height: 320,
     })
+    expect(initialSize({ width: null, height: null, kind: 'audio' })).toEqual({
+      width: 320,
+      height: 107,
+    })
   })
 
   it('derives titles from explicit title, file name or URL', () => {

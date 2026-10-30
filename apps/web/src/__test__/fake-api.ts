@@ -292,7 +292,7 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         const created = makeGeneration({
           id: nextId('gen'),
           prompt: typeof body.prompt === 'string' ? body.prompt : '',
-          kind: body.kind === 'video' ? 'video' : 'image',
+          kind: body.kind === 'video' || body.kind === 'audio' ? body.kind : 'image',
           model: typeof body.model === 'string' ? body.model : null,
           status: body.submit === false ? 'draft' : 'pending',
           position: (body.position as GenerationRequest['position'] | undefined) ?? {
@@ -319,7 +319,9 @@ export const createFakeApi = (seed: Partial<State> = {}) => {
         replace({
           ...found,
           ...(typeof body.prompt === 'string' ? { prompt: body.prompt } : {}),
-          ...(body.kind === 'image' || body.kind === 'video' ? { kind: body.kind } : {}),
+          ...(body.kind === 'image' || body.kind === 'video' || body.kind === 'audio'
+            ? { kind: body.kind }
+            : {}),
           ...('model' in body ? { model: body.model as string | null } : {}),
           ...('aspectRatio' in body ? { aspectRatio: body.aspectRatio as string | null } : {}),
           ...(typeof body.count === 'number' ? { count: body.count } : {}),

@@ -248,6 +248,13 @@ describe('media', () => {
     ['mp4', [...MP4], 'video/mp4'],
     ['mov', [0, 0, 0, 0, ...ascii('ftypqt  ')], 'video/quicktime'],
     ['avif', [0, 0, 0, 0, ...ascii('ftypavif')], 'image/avif'],
+    ['wav', [...ascii('RIFF'), 0, 0, 0, 0, ...ascii('WAVE')], 'audio/wav'],
+    ['mp3 with ID3 tag', ascii('ID3'), 'audio/mpeg'],
+    ['mp3 frame', [0xff, 0xfb], 'audio/mpeg'],
+    ['aac (ADTS)', [0xff, 0xf1], 'audio/aac'],
+    ['ogg', ascii('OggS'), 'audio/ogg'],
+    ['flac', ascii('fLaC'), 'audio/flac'],
+    ['m4a', [0, 0, 0, 0, ...ascii('ftypM4A ')], 'audio/mp4'],
   ])('detects %s from magic bytes', (...[, signature, mimeType]) => {
     expect(detectMediaType(bytes(signature))?.mimeType).toBe(mimeType)
   })

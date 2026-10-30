@@ -12,6 +12,7 @@ import {
   type OnSelectionChangeParams,
 } from '@xyflow/react'
 import {
+  AudioLines,
   ArrowDownToLine,
   ArrowUpToLine,
   Copy,
@@ -147,6 +148,12 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
           onSelect={() => menu.onGenerate('video')}
           testId="menu-generate-video"
         />
+        <ContextMenuItem
+          label={`Generate speech${count}`}
+          icon={AudioLines}
+          onSelect={() => menu.onGenerate('audio')}
+          testId="menu-generate-audio"
+        />
         <ContextMenuSeparator />
         <ContextMenuItem
           label="Rename"
@@ -262,6 +269,12 @@ const BoardMenuContent = ({ menu }: { readonly menu: BoardMenu }) => {
         testId="menu-new-video-prompt"
       />
       <ContextMenuItem
+        label="New speech prompt"
+        icon={AudioLines}
+        onSelect={() => menu.onNewPrompt('audio')}
+        testId="menu-new-audio-prompt"
+      />
+      <ContextMenuItem
         label="Add section"
         icon={SquareDashed}
         onSelect={menu.onAddSection}
@@ -313,6 +326,13 @@ const SelectionToolbarView = ({ toolbar }: { readonly toolbar: SelectionToolbar 
           size="sm"
           onClick={() => toolbar.onGenerate('video')}
           testId="toolbar-generate-video"
+        />
+        <IconButton
+          icon={AudioLines}
+          label="Generate speech"
+          size="sm"
+          onClick={() => toolbar.onGenerate('audio')}
+          testId="toolbar-generate-audio"
         />
         <IconButton
           icon={Group}

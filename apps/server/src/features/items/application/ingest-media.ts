@@ -36,7 +36,10 @@ export const ingestMedia = async (params: {
   const { deps, input } = params
   const type = detectMediaType(input.bytes)
   if (type === null)
-    return err({ code: 'unsupported_media', message: 'Only images and videos are supported' })
+    return err({
+      code: 'unsupported_media',
+      message: 'Only images, videos and audio are supported',
+    })
 
   const dimensions = type.kind === 'image' ? probeImageDimensions(input.bytes) : null
   const id = deps.newId({ prefix: 'itm' })

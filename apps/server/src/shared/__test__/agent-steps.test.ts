@@ -73,6 +73,16 @@ describe('agent steps', () => {
     expect(labelsOf(assistant([toolUse({ name: 'mcp__higgsfield__generate_image' })]))).toEqual([
       'Generating',
     ])
+    expect(
+      labelsOf(
+        assistant([
+          toolUse({
+            name: 'mcp__higgsfield__generate_audio',
+            input: { params: { model: 'elevenlabs_v4', prompt: 'Mara: We are late.' } },
+          }),
+        ]),
+      ),
+    ).toEqual(['Generating with elevenlabs_v4'])
   })
 
   it('ignores progress reports, tool search, failures and anything that is not a tool call', () => {

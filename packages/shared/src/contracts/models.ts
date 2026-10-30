@@ -100,6 +100,15 @@ const SEEDANCE_2_5: ModelSpec = {
   ],
 }
 
+/** Speech and multi-voice dialogue; voices are picked by the agent, so the card has no settings. */
+const ELEVENLABS_V4: ModelSpec = {
+  id: 'elevenlabs_v4',
+  label: 'Eleven v4',
+  kind: 'audio',
+  aspectRatios: [],
+  settings: [],
+}
+
 /**
  * The models the card offers, with the settings Higgsfield exposes for each (models_explore).
  * Each has a prompt guide in prompt-guides/<id>.md.
@@ -203,17 +212,20 @@ export const MODELS: readonly ModelSpec[] = [
     ],
   },
   SEEDANCE_2_5,
+  ELEVENLABS_V4,
 ]
 
 /** Model used when a request has none (or one no longer offered). */
 export const DEFAULT_MODEL_SPECS: Readonly<Record<GenerationKind, ModelSpec>> = {
   image: NANO_BANANA_PRO,
   video: SEEDANCE_2_5,
+  audio: ELEVENLABS_V4,
 }
 
 export const DEFAULT_MODELS: Readonly<Record<GenerationKind, string>> = {
   image: NANO_BANANA_PRO.id,
   video: SEEDANCE_2_5.id,
+  audio: ELEVENLABS_V4.id,
 }
 
 export const modelSpecOf = (id: string): ModelSpec | undefined =>

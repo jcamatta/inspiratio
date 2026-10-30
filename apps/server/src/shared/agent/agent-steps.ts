@@ -24,6 +24,8 @@ const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
 const stringOrNull = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() !== '' ? value : null
 
+const GENERATE_TOOLS = new Set(['generate_image', 'generate_video', 'generate_audio'])
+
 /** `mcp__higgsfield__generate_image` → `generate_image`; built-in tools keep their name. */
 export const toolNameOf = (name: string): string => name.split('__').at(-1) ?? name
 
@@ -35,7 +37,7 @@ export const providerCallOf = (input: Readonly<Record<string, unknown>>): Provid
 /** Signals for one tool call; tools that say nothing about progress yield none. */
 export const toolSignals = (tool: ToolUse): AgentSignal[] => {
   const name = toolNameOf(tool.name)
-  if (name === 'generate_image' || name === 'generate_video') {
+  if (GENERATE_TOOLS.has(name)) {
     const call = providerCallOf(tool.input)
     const label = call.model === null ? 'Generating' : `Generating with ${call.model}`
     return [

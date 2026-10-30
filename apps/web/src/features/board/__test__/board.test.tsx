@@ -410,6 +410,32 @@ describe('Canvas', () => {
     expect(video.muted).toBe(true)
     expect(within(node).getByRole('button', { name: 'Unmute' })).toBeInTheDocument()
   })
+
+  it('shows audio items as a waveform player', async () => {
+    const api = createFakeApi({
+      items: [
+        makeItem({
+          id: 'itm_s',
+          kind: 'audio',
+          title: 'Line',
+          media: {
+            fileName: 'itm_s.mp3',
+            mimeType: 'audio/mpeg',
+            bytes: 10,
+            width: null,
+            height: null,
+          },
+        }),
+      ],
+    })
+    renderWithApp({ ui: <AppView />, api })
+    const node = await screen.findByTestId('media-node-itm_s')
+    const audio = within(node).getByTestId<HTMLAudioElement>('audio-element')
+    expect(audio.getAttribute('src')).toBe('/media/itm_s.mp3')
+    expect(within(node).getByTestId('audio-waveform').children).toHaveLength(64)
+    fireEvent.click(within(node).getByRole('button', { name: 'Mute' }))
+    expect(audio.muted).toBe(true)
+  })
 })
 
 describe('Prompt cards', () => {
@@ -599,7 +625,7 @@ describe('Prompt cards', () => {
     })
   })
 
-  it('creates empty image and video prompts from the canvas menu and undoes them', async () => {
+  it('creates empty image, video and speech prompts from the canvas menu', async () => {
     const api = seeded()
     const { user } = renderWithApp({ ui: <AppView />, api })
     await screen.findByTestId('media-node-itm_a')
@@ -620,6 +646,12 @@ describe('Prompt cards', () => {
     await waitFor(() => {
       expect(api.state.generations).toHaveLength(0)
     })
+    await user.click(within(await openMenuOn(pane())).getByTestId('menu-new-audio-prompt'))
+    const speech = await screen.findByTestId(/^prompt-node-/)
+    expect(within(speech).getByTestId('prompt-title')).toHaveTextContent('Speech prompt')
+    expect(within(speech).getByTestId('prompt-model')).toHaveTextContent('Eleven v4')
+    expect(within(speech).queryByTestId('prompt-aspect')).not.toBeInTheDocument()
+    expect(api.state.generations[0]?.kind).toBe('audio')
   })
 
   it('shows results, errors and toasts as requests progress', async () => {

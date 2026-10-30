@@ -15,6 +15,7 @@ import {
 } from '../../../shared/ui/index.ts'
 import { TagPicker } from '../../tags/TagPicker.controller.tsx'
 import type { MediaNodeData } from '../domain/flow-mapping.ts'
+import { AudioPlayer } from './AudioPlayer.controller.tsx'
 import { VideoPlayer } from './VideoPlayer.controller.tsx'
 
 export type MediaNodeViewProps = {
@@ -55,7 +56,9 @@ export const MediaNodeView = (props: MediaNodeViewProps) => {
           props.selected ? 'outline-3 outline-offset-3 outline-mint-700' : 'ring-1 ring-mint-950/5',
         )}
       >
-        {item.kind === 'video' ? (
+        {item.kind === 'audio' ? (
+          <AudioPlayer item={item} />
+        ) : item.kind === 'video' ? (
           <VideoPlayer
             item={item}
             showControls={props.selected}

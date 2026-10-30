@@ -64,7 +64,9 @@ export const toolInputs = {
             .string()
             .optional()
             .describe('Absolute local path, if you downloaded the file'),
-          model: z.string().describe('Model used, e.g. nano_banana_pro, seedance_2_5'),
+          model: z
+            .string()
+            .describe('Model used, e.g. nano_banana_pro, seedance_2_5, elevenlabs_v4'),
           provider: z.string().default('higgsfield'),
           title: z.string().optional(),
         }),
@@ -127,11 +129,11 @@ const fromResult = <T>(params: {
 export const HIGGSFIELD_GUIDE = [
   'How to fulfil this request with the Higgsfield MCP (be quick: batch calls, no extra lookups):',
   '1. start_generation with this id. If it was already in_progress, read progress and check higgsfield show_generations for a job already submitted before generating again. Call report_progress once per phase: "Uploading references", "Generating with <model> (job <id>)", "Importing results".',
-  '2. References: when providerMediaIds.higgsfield is set, use that media id and do not upload. Upload the rest together: one media_upload {files: [{filename: basename of uploadPath}]}, then every PUT in a single Bash command (curl -sS -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: <uploadMimeType>" --data-binary @<uploadPath> "<upload_url>" chained with &&), then one media_confirm {media_ids, type: "image"} (type "video" for videos). Never upload absolutePath.',
-  '3. Model: generate with request.promptGuide.model, always. It is already resolved (nano_banana_pro for images and seedance_2_5 for videos when the card has none); never pick another model and never call models_explore unless request.promptGuide.content tells you to check roles or aspect ratios.',
+  '2. References: when providerMediaIds.higgsfield is set, use that media id and do not upload. Upload the rest together: one media_upload {files: [{filename: basename of uploadPath}]}, then every PUT in a single Bash command (curl -sS -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: <uploadMimeType>" --data-binary @<uploadPath> "<upload_url>" chained with &&), then one media_confirm {media_ids, type: "image"} (type "video" for videos, "audio" for audio). Never upload absolutePath. Skip this step when request.kind is audio: the speech model takes no media, and references only inform the voice choice.',
+  '3. Model: generate with request.promptGuide.model, always. It is already resolved (nano_banana_pro for images, seedance_2_5 for videos and elevenlabs_v4 for audio when the card has none); never pick another model and never call models_explore unless request.promptGuide.content tells you to check roles or aspect ratios.',
   '4. Prompt: write the provider prompt by following request.promptGuide.content exactly (structure, wording rules, what to avoid); it is the guide for that model. Keep the user intent and replace each label (@1, @2…) with what that reference contributes, as the guide describes. Pass media ids in params.medias in label order, with aspect_ratio when set and count.',
   '4b. Settings: spread request.resolvedOptions into params unchanged (e.g. resolution, quality, variant, background, duration, bitrate_mode, generate_audio). They are the user choices on the card; never override them. The guide says how they shape the prompt and which extra params (such as mode for video) you choose yourself.',
-  '5. generate_image (kind=image) or generate_video (kind=video); repeat jobs_wait {jobs: [{index, job_id}], timeout_seconds: 15} until terminal.',
+  '5. generate_image (kind=image), generate_video (kind=video) or generate_audio (kind=audio); repeat jobs_wait {jobs: [{index, job_id}], timeout_seconds: 15} until terminal.',
   '6. complete_generation with one result per output URL, the exact model id, providerPrompt set to the exact prompt you sent, promptGuide set to request.promptGuide.guide and uploads listing {itemId, mediaId} for every reference you uploaded in step 2. On any error call fail_generation with a short reason; if a reused media id is rejected, upload that file again once.',
 ].join('\n')
 

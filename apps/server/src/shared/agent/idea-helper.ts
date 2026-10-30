@@ -33,12 +33,14 @@ const FOCUS: Readonly<Record<GenerationKind, string>> = {
   video:
     'what moves and how (direction, shape, speed, rhythm), what stays still, what the camera does (or that it stays locked), and how the shot begins and ends',
   image: 'subject, composition and framing, light, mood and style',
+  audio:
+    'who speaks (age, gender, accent, character), the exact words of each line in order, and how each is delivered (emotion, pace, volume, pauses)',
 }
 
 const referenceLine = (reference: IdeaReference): string =>
   reference.kind === 'image'
     ? `- ${reference.label}: image "${reference.title}", file ${reference.path}`
-    : `- ${reference.label}: video "${reference.title}" (not readable, rely on its title)`
+    : `- ${reference.label}: ${reference.kind} "${reference.title}" (not readable, rely on its title)`
 
 const historyLines = (history: readonly IdeaTurn[]): string[] =>
   history.length === 0
@@ -64,7 +66,7 @@ export const ideaPrompt = (request: IdeaRequest): string =>
     'Rules:',
     '- Keep the intent of the user and every reference token (@1, @2…) exactly as written.',
     '- Read the image files below so the description matches what is really in them.',
-    `- Make the idea concrete and visual: ${FOCUS[request.kind]}.`,
+    `- Make the idea concrete${request.kind === 'audio' ? '' : ' and visual'}: ${FOCUS[request.kind]}.`,
     '- Spell out what must NOT happen when the wording implies it, e.g. "the camera does not zoom".',
     '- Plain prose in the language of the user, at most about 120 words. No model names, technical settings, durations, resolutions or prompt jargon.',
     '- If something important is ambiguous, ask up to 3 short questions; otherwise ask none.',

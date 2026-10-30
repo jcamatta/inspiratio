@@ -11,6 +11,7 @@ import {
 import { NodeResizer } from '@xyflow/react'
 import { LineageHandles } from './LineageHandles.tsx'
 import {
+  AudioLines,
   ClipboardCopy,
   Clock,
   Copy,
@@ -104,7 +105,7 @@ const STATUS: Readonly<
   failed: { label: 'Failed', tone: 'bg-danger-surface text-danger' },
 }
 
-/** Image and video prompts are separate cards: their own title, icon, colour and drop hint. */
+/** Image, video and speech prompts are separate cards: their own title, icon, colour and drop hint. */
 const KIND: Readonly<
   Record<
     GenerationKind,
@@ -114,6 +115,7 @@ const KIND: Readonly<
       readonly tone: string
       readonly accent: string
       readonly dropHint: string
+      readonly placeholder: string
     }
   >
 > = {
@@ -123,13 +125,23 @@ const KIND: Readonly<
     tone: 'text-accent',
     accent: 'border-t-4 border-t-accent',
     dropHint: 'Drop reference images here',
+    placeholder: 'Describe the shot, use @1, @2…',
   },
   video: {
     title: 'Video prompt',
     icon: Film,
     tone: 'text-primary',
     accent: 'border-t-4 border-t-primary',
-    dropHint: 'Drop images or videos here',
+    dropHint: 'Drop images, videos or audio here',
+    placeholder: 'Describe the shot, use @1, @2…',
+  },
+  audio: {
+    title: 'Speech prompt',
+    icon: AudioLines,
+    tone: 'text-tag-violet-fg',
+    accent: 'border-t-4 border-t-tag-violet-fg',
+    dropHint: 'Drop character references to help cast the voices',
+    placeholder: 'Who says what and how, e.g. @1 whispers: "We are late."',
   },
 }
 
@@ -213,7 +225,11 @@ const Thumb = ({
       <MediaImage src={mediaUrlOf(item.media)} alt={item.title} />
     ) : (
       <Stack align="center" justify="center" className="size-full">
-        <Film size={16} className="text-muted-foreground" />
+        {item.kind === 'audio' ? (
+          <AudioLines size={16} className="text-muted-foreground" />
+        ) : (
+          <Film size={16} className="text-muted-foreground" />
+        )}
       </Stack>
     )}
     {label !== undefined && (
@@ -414,7 +430,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
                 if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && props.canGenerate)
                   props.onGenerate()
               }}
-              placeholder="Describe the shot, use @1, @2…"
+              placeholder={kind.placeholder}
               className="nodrag"
               testId="prompt-brief"
             />
@@ -458,14 +474,16 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
               testId="prompt-model"
             />
             <Box className="flex flex-wrap gap-1.5" testId="prompt-settings">
-              <ChipSelect
-                label="Aspect ratio"
-                icon={<AspectIcon ratio={request.aspectRatio ?? AUTO_ASPECT} />}
-                value={request.aspectRatio ?? AUTO_ASPECT}
-                options={aspectChoicesOf(props.model)}
-                onValueChange={(aspectRatio) => props.onSettingsChange({ aspectRatio })}
-                testId="prompt-aspect"
-              />
+              {props.model.aspectRatios.length > 0 && (
+                <ChipSelect
+                  label="Aspect ratio"
+                  icon={<AspectIcon ratio={request.aspectRatio ?? AUTO_ASPECT} />}
+                  value={request.aspectRatio ?? AUTO_ASPECT}
+                  options={aspectChoicesOf(props.model)}
+                  onValueChange={(aspectRatio) => props.onSettingsChange({ aspectRatio })}
+                  testId="prompt-aspect"
+                />
+              )}
               <ChipSelect
                 label="Variants"
                 icon={<Copy {...ICON} />}
@@ -504,9 +522,13 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
           </Text>
           <Stack direction="row" align="center" justify="between" gap={2}>
             <Text variant="caption" testId="prompt-summary">
-              {props.model.label}
-              {request.aspectRatio === null ? '' : ` · ${request.aspectRatio}`}
-              {` · ${settingsSummaryOf({ model: props.model, options: request.options })}`}
+              {[
+                props.model.label,
+                request.aspectRatio ?? '',
+                settingsSummaryOf({ model: props.model, options: request.options }),
+              ]
+                .filter((part) => part !== '')
+                .join(' · ')}
             </Text>
             {props.duration !== null && (
               <Stack direction="row" align="center" gap={1} className="shrink-0">

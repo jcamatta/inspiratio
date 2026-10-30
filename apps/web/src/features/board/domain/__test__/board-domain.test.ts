@@ -38,7 +38,11 @@ describe('drop data', () => {
     })
     const png = new File(['x'], 'a.png', { type: 'image/png' })
     const txt = new File(['x'], 'a.txt', { type: 'text/plain' })
-    expect(parseTransfer(snapshot({ files: [png, txt] }))).toEqual({ kind: 'files', files: [png] })
+    const mp3 = new File(['x'], 'line.mp3', { type: 'audio/mpeg' })
+    expect(parseTransfer(snapshot({ files: [png, txt, mp3] }))).toEqual({
+      kind: 'files',
+      files: [png, mp3],
+    })
   })
 
   it('extracts page media before links and unwraps redirects', () => {

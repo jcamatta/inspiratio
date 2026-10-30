@@ -52,7 +52,34 @@ const SIGNATURES: readonly {
     test: (bytes) => startsWith({ bytes, signature: [0x1a, 0x45, 0xdf, 0xa3] }),
     type: { kind: 'video', mimeType: 'video/webm', extension: 'webm' },
   },
+  {
+    test: (bytes) =>
+      startsWith({ bytes, signature: ascii('RIFF') }) &&
+      startsWith({ bytes, signature: ascii('WAVE'), offset: 8 }),
+    type: { kind: 'audio', mimeType: 'audio/wav', extension: 'wav' },
+  },
+  {
+    test: (bytes) => startsWith({ bytes, signature: ascii('ID3') }),
+    type: { kind: 'audio', mimeType: 'audio/mpeg', extension: 'mp3' },
+  },
+  {
+    test: (bytes) => startsWith({ bytes, signature: ascii('OggS') }),
+    type: { kind: 'audio', mimeType: 'audio/ogg', extension: 'ogg' },
+  },
+  {
+    test: (bytes) => startsWith({ bytes, signature: ascii('fLaC') }),
+    type: { kind: 'audio', mimeType: 'audio/flac', extension: 'flac' },
+  },
 ]
+
+/** MPEG audio frames start with 11 set bits; layer bits 00 mark AAC in an ADTS stream. */
+const frameSyncType = (bytes: Uint8Array): MediaType | null => {
+  const [first, second] = bytes
+  if (first !== 0xff || second === undefined || (second & 0xe0) !== 0xe0) return null
+  return (second & 0x06) === 0
+    ? { kind: 'audio', mimeType: 'audio/aac', extension: 'aac' }
+    : { kind: 'audio', mimeType: 'audio/mpeg', extension: 'mp3' }
+}
 
 const ftypType = (bytes: Uint8Array): MediaType | null => {
   if (!startsWith({ bytes, signature: ascii('ftyp'), offset: 4 })) return null
@@ -60,12 +87,15 @@ const ftypType = (bytes: Uint8Array): MediaType | null => {
   if (brand === 'avif' || brand === 'avis')
     return { kind: 'image', mimeType: 'image/avif', extension: 'avif' }
   if (brand === 'qt  ') return { kind: 'video', mimeType: 'video/quicktime', extension: 'mov' }
+  if (brand === 'M4A ') return { kind: 'audio', mimeType: 'audio/mp4', extension: 'm4a' }
   return { kind: 'video', mimeType: 'video/mp4', extension: 'mp4' }
 }
 
 /** Detects the media type from magic bytes; never trusts file names or Content-Type headers. */
 export const detectMediaType = (bytes: Uint8Array): MediaType | null =>
-  SIGNATURES.find((signature) => signature.test(bytes))?.type ?? ftypType(bytes)
+  SIGNATURES.find((signature) => signature.test(bytes))?.type ??
+  ftypType(bytes) ??
+  frameSyncType(bytes)
 
 export const probeImageDimensions = (
   bytes: Uint8Array,

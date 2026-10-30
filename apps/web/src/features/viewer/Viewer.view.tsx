@@ -5,9 +5,11 @@ import {
   Box,
   Dialog,
   IconButton,
+  MediaAudio,
   MediaImage,
   MediaVideo,
   Panel,
+  Stack,
   Text,
 } from '../../shared/ui/index.ts'
 import { toCss, type ViewTransform } from './domain/zoom.ts'
@@ -53,7 +55,11 @@ export const ViewerView = ({ onStageElement, ...props }: ViewerViewProps) => (
             className="absolute inset-0 origin-top-left"
             style={{ transform: toCss(props.view) }}
           >
-            {props.item.kind === 'video' ? (
+            {props.item.kind === 'audio' ? (
+              <Stack align="center" justify="center" className="size-full p-8">
+                <MediaAudio src={mediaUrlOf(props.item.media)} controls autoPlay />
+              </Stack>
+            ) : props.item.kind === 'video' ? (
               <MediaVideo
                 src={mediaUrlOf(props.item.media)}
                 fit="contain"

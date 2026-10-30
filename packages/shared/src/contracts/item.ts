@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { IdSchema, SizeSchema, Vec2Schema } from './geometry.ts'
 
-export const ItemKindSchema = z.enum(['image', 'video'])
+/** What a canvas item holds; generation cards produce the same kinds. */
+export const ITEM_KINDS = ['image', 'video', 'audio'] as const
+export const ItemKindSchema = z.enum(ITEM_KINDS)
 export type ItemKind = z.infer<typeof ItemKindSchema>
 
 export const ItemOriginSchema = z.enum(['upload', 'url', 'generated', 'file'])

@@ -31,7 +31,7 @@ export type DropPayload =
   | { readonly kind: 'items'; readonly itemIds: string[] }
   | { readonly kind: 'none' }
 
-const MEDIA_FILE = /^(image|video)\//
+const MEDIA_FILE = /^(image|video|audio)\//
 
 const isHttpUrl = (value: string): boolean => {
   try {
@@ -56,7 +56,7 @@ export const unwrapRedirect = (value: string): string => {
   }
 }
 
-const SRC_PATTERN = /<(?:img|video|source)\b[^>]*?\ssrc\s*=\s*["']([^"']+)["']/gi
+const SRC_PATTERN = /<(?:img|video|audio|source)\b[^>]*?\ssrc\s*=\s*["']([^"']+)["']/gi
 
 /** Dragging an image out of a web page carries an HTML fragment whose <img src> is the media. */
 export const extractMediaSources = (html: string): string[] =>

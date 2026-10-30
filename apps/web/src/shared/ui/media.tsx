@@ -82,6 +82,84 @@ export const MediaVideo = ({
   />
 )
 
+export type MediaAudioProps = {
+  readonly src: string
+  readonly ref?: Ref<HTMLAudioElement>
+  readonly testId?: string
+  /** Native controls; off for players that draw their own (the element is then invisible). */
+  readonly controls?: boolean
+  readonly autoPlay?: boolean
+  readonly muted?: boolean
+  readonly className?: string
+  readonly onLoadedMetadata?: ComponentProps<'audio'>['onLoadedMetadata']
+  readonly onTimeUpdate?: ComponentProps<'audio'>['onTimeUpdate']
+  readonly onPlay?: () => void
+  readonly onPause?: () => void
+  readonly onEnded?: () => void
+}
+
+export const MediaAudio = ({
+  src,
+  ref,
+  testId,
+  controls = false,
+  autoPlay = false,
+  muted = false,
+  className,
+  onLoadedMetadata,
+  onTimeUpdate,
+  onPlay,
+  onPause,
+  onEnded,
+}: MediaAudioProps) => (
+  <audio
+    ref={ref}
+    src={src}
+    data-testid={testId}
+    muted={muted}
+    preload="metadata"
+    controls={controls}
+    autoPlay={autoPlay}
+    onLoadedMetadata={onLoadedMetadata}
+    onTimeUpdate={onTimeUpdate}
+    onPlay={onPlay}
+    onPause={onPause}
+    onEnded={onEnded}
+    className={cx(controls ? 'w-full' : 'hidden', className)}
+  />
+)
+
+export type WaveformProps = {
+  /** Bar heights from 0 to 1. */
+  readonly peaks: readonly number[]
+  /** Share of the bars drawn as played, from 0 to 1. */
+  readonly progress: number
+  readonly className?: string
+  readonly testId?: string
+}
+
+export const Waveform = ({ peaks, progress, className, testId }: WaveformProps) => {
+  const played = Math.round(progress * peaks.length)
+  return (
+    <div
+      data-testid={testId}
+      aria-hidden
+      className={cx('flex size-full items-center gap-px', className)}
+    >
+      {[...peaks.entries()].map(([index, peak]) => (
+        <span
+          key={index}
+          className={cx(
+            'min-w-px flex-1 rounded-full transition-colors',
+            index < played ? 'bg-mint-700' : 'bg-mint-200',
+          )}
+          style={{ height: `${String(Math.round(peak * 100))}%` }}
+        />
+      ))}
+    </div>
+  )
+}
+
 export type FilePickerProps = {
   readonly label: string
   readonly icon: LucideIcon
