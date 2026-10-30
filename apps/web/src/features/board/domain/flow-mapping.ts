@@ -128,7 +128,6 @@ export const toFlowNodes = (params: {
     ...(request.size === null ? {} : { height: request.size.height }),
     zIndex: PROMPT_Z_INDEX,
     selected: kept(request.id)?.selected ?? false,
-    dragHandle: '.prompt-drag-handle',
     data: {
       request,
       references: itemsById({
@@ -361,6 +360,26 @@ export const revertPositions = (params: {
 export const deletableNodes = (nodes: readonly BoardNode[]): BoardNode[] => {
   const sections = new Set(nodes.filter(isSectionNode).map((node) => node.id))
   return nodes.filter((node) => node.parentId === undefined || !sections.has(node.parentId))
+}
+
+/**
+ * A selected section is grabbed from anywhere inside it: its whole body becomes the drag handle
+ * and its children let the pointer through, so pressing on an image moves the section instead.
+ */
+export const grabSelectedSections = (nodes: BoardNode[]): BoardNode[] => {
+  const grabbed = new Set(
+    nodes.filter((node) => isSectionNode(node) && node.selected === true).map((node) => node.id),
+  )
+  if (grabbed.size === 0) return nodes
+  return nodes.map((node) => {
+    if (grabbed.has(node.id)) {
+      const { dragHandle: _handle, ...rest } = node
+      return rest
+    }
+    if (node.parentId !== undefined && grabbed.has(node.parentId))
+      return { ...node, style: { ...node.style, pointerEvents: 'none' } }
+    return node
+  })
 }
 
 export const selectedItemIds = (nodes: readonly BoardNode[]): string[] =>

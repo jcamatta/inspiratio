@@ -238,7 +238,7 @@ const Thumb = ({
       </Text>
     )}
     {onRemove !== undefined && (
-      <Box className="absolute top-0.5 right-0.5 opacity-0 transition group-hover:opacity-100">
+      <Box className="nodrag absolute top-0.5 right-0.5 opacity-0 transition group-hover:opacity-100">
         <IconButton
           icon={X}
           label={`Remove ${label ?? item.title}`}
@@ -368,12 +368,7 @@ export const PromptNodeView = (props: PromptNodeViewProps) => {
     >
       <LineageHandles />
       <NodeResizer isVisible={props.selected} minWidth={300} minHeight={260} />
-      <Stack
-        direction="row"
-        align="center"
-        justify="between"
-        className="prompt-drag-handle cursor-grab"
-      >
+      <Stack direction="row" align="center" justify="between">
         <Stack direction="row" align="center" gap={2}>
           <GripHorizontal size={14} className="text-muted-foreground" />
           <kind.icon size={14} className={kind.tone} />

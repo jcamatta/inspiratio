@@ -37,6 +37,7 @@ import { dimOutside, lineageOf } from './domain/lineage.ts'
 import {
   applyReparenting,
   deletableNodes,
+  grabSelectedSections,
   hoveredPrompt,
   isDragging,
   isMediaNode,
@@ -210,7 +211,10 @@ export const Board = () => {
       }),
     [focusKey, board.items, requests],
   )
-  const shownNodes = useMemo(() => dimOutside({ nodes, lineage }), [nodes, lineage])
+  const shownNodes = useMemo(
+    () => dimOutside({ nodes: grabSelectedSections(nodes), lineage }),
+    [nodes, lineage],
+  )
 
   const onContextMenu = useCallback(
     (event: MouseEvent) => {

@@ -5,6 +5,7 @@ import {
   absolutePosition,
   applyReparenting,
   containingSection,
+  grabSelectedSections,
   hoveredPrompt,
   isDragging,
   isMediaNode,
@@ -233,6 +234,22 @@ describe('planPersistence', () => {
     expect(plan.prompts).toEqual([
       { id: 'gen_draft', position: expect.any(Object), size: { width: 420, height: 516 } },
     ])
+  })
+})
+
+describe('grabSelectedSections', () => {
+  it('leaves nodes alone while no section is selected', () => {
+    const list = nodes()
+    expect(grabSelectedSections(list)).toBe(list)
+  })
+
+  it('drags a selected section from its body and lets clicks through its children', () => {
+    const list = nodes().map((node) => (node.id === 'sec_1' ? { ...node, selected: true } : node))
+    const grabbed = grabSelectedSections(list)
+    const byId = (id: string) => grabbed.find((node) => node.id === id)
+    expect(byId('sec_1')?.dragHandle).toBeUndefined()
+    expect(byId('itm_b')?.style?.pointerEvents).toBe('none')
+    expect(byId('itm_a')?.style).toBeUndefined()
   })
 })
 
